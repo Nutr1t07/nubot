@@ -1,0 +1,11 @@
+resolver:
+  url: https://mirrors.tuna.tsinghua.edu.cn/stackage/stackage-snapshots/lts/18/12.yaml
+
+
+packages:
+- .
+
+
+nix:
+  enable: true
+  packages: [ zlib ]
