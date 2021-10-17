@@ -9,5 +9,4 @@ snapshots:
     size: 586041
     url: https://mirrors.tuna.tsinghua.edu.cn/stackage/stackage-snapshots/lts/18/12.yaml
     sha256: 80fc6391195ff00c36f2a605ecbb07de909bfaa2eaa9722a27e486a6ecf8ecb0
-  original:
-    url: https://mirrors.tuna.tsinghua.edu.cn/stackage/stackage-snapshots/lts/18/12.yaml
+  original: lts-18.12

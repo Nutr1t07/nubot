@@ -26,8 +26,8 @@ dependencies:
 - text
 - aeson
 - time
-- QuickCheck
-- hspec
+# - QuickCheck
+# - hspec
 - random
 - smtp-mail
 - serialise
