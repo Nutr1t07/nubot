@@ -32,7 +32,7 @@ data ChainMessage = ChainMessage {
   , cm_code        :: Maybe Text
 
   -- quote
-  , cm_origin   :: Maybe ChainMessage
+  , cm_origin   :: Maybe [ChainMessage]
 
   -- at
   , cm_target   :: Maybe Integer

@@ -1,8 +1,44 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 module Data.Monads where
+import Control.Monad (liftM)
 
-import Data.Bifunctor ( Bifunctor(first) )
+-- import Data.Bifunctor ( Bifunctor(first) )
+
+class (forall m. Monad m => Monad (t m)) => MonadTrans t where
+  lift :: Monad m => m a -> t m a 
+
+-- ## EitherT
+newtype EitherT e m a = EitherT {
+  runEitherT :: m (Either e a)
+}
+
+instance MonadTrans (EitherT e) where
+  lift = EitherT . fmap Right
+
+instance (Functor m) => Functor (EitherT e m) where
+  fmap f (EitherT x) = EitherT $ fmap (fmap f) x
+
+instance (Applicative m) => Applicative (EitherT e m) where
+  pure = EitherT . pure . Right
+  (EitherT f) <*> (EitherT x) = EitherT $ (<*>) <$> f <*> x
+
+instance (Monad m) => Monad (EitherT e m) where
+  (EitherT x) >>= f = EitherT $ do
+    a <- x
+    case a of
+      Right rv -> runEitherT $ f rv
+      Left lf -> pure $ Left lf
+
+exitErr :: Monad m => e -> EitherT e m a
+exitErr = EitherT . pure . Left
+
+modErr :: Monad m => (e -> b) -> m (Either e a) -> EitherT b m a
+modErr f x = EitherT $ do
+  mx <- x
+  case mx of
+    Right x' -> pure $ pure x'
+    Left err' -> pure $ Left $ f err'
 
 -- 
 -- class (forall m. Monad m => Monad (t m)) => MonadTrans t where

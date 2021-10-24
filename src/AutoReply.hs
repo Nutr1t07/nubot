@@ -21,14 +21,17 @@ import Data.Either (fromRight)
 import Data.Time (getCurrentTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime, utcTimeToPOSIXSeconds)
 import Module.WebSearch (runBaiduSearch)
+import Module.ImageSearch (runSauceNAOSearch)
 import Util.Log (logWT'T, LogTag (Debug, Info), logWT, logErr)
 import Type.Mirai.Common (ChatType(Friend))
+import Network.Mail (sendUpdateToEmail)
 
 mainHandler :: Int -> TaskQueue -> UserGroup -> RepliedTable -> Update -> Connection -> IO ()
 mainHandler selfId tasks grp tb upd conn = do
   when (isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId) $ addTask tasks $
-    msgHandler conn grp upd tb
+    privMsgHandler conn grp upd tb
   when (isAddFriendEvent upd) $ addFriendHandler conn grp upd
+  when (isFromGroup upd) $ grpMsgHandler conn upd
 
 addFriendHandler :: Connection -> UserGroup -> Update -> IO ()
 addFriendHandler conn grp upd@(EUpdate upde) = do
@@ -39,16 +42,44 @@ addFriendHandler conn grp upd@(EUpdate upde) = do
             Nothing -> createUser grp userId'
   let resp = mkFriendEventResp upd 0
   logWT Info ("new friend " <> show userId' <> " added") >> sendCommand "resp_newFriendRequestEvent" conn resp
-  reply "您好，我现在不再使用QQ。您可以通过此QQ向我留言，也可以通过发送『联系方式』来获取我的直接联系方式。"
-  reply "您可以通过此QQ向我留言，如果有特殊或紧急事件，请直接获取我的联系方式。"
-  reply "通常情况下，我建议您『留言』。您的留言将会被合并成一封电子邮件自动发送至我的邮箱，我将在看到后尽快回复您。"
-  reply "如果您想要留言，请发送『留言』；如果您想要获取我的联系方式，请发送『联系方式』。或发送『帮助』以获取提示。"
+  reply "嗨，我当前不在线"
+  reply "您的好友请求已由机器人自动同意，发送『帮助』以查看此机器人的功能"
   void $ replaceUser grp (setState Idle usr)
   where reply text = sendMessage Friend conn (mkSendMsgT text upd)
 addFriendHandler _ _ _ = pure ()
 
-msgHandler :: Connection -> UserGroup -> Update -> RepliedTable -> IO ()
-msgHandler conn grp upd@(MUpdate updm) tb = do
+
+grpMsgHandler :: Connection -> Update -> IO ()
+grpMsgHandler conn upd@(MUpdate updm) = do
+  case () of
+      _ | msgTxtEqTo "sp" -> do
+          let imgUrl = case getImgUrls upd of
+                Nothing -> ""
+                Just [] -> ""
+                Just x  -> head x
+
+          logWT Info $ "running SauceNAO search: " <> show imgUrl
+          logWT Debug $ "got image urls: " <> show (getImgUrls upd)
+          rst <- runSauceNAOSearch imgUrl
+          let txt = case rst of
+                      Right x -> x
+                      Left err -> err
+          replyQ txt
+        | msgTxtEqTo "ping" -> replyQ "1 packets transmitted, 1 received, 0% packet loss"
+        | otherwise -> pure ()
+  where
+    msgTxt = fromMaybe "" $ getPlainText upd
+
+    msgTxtEqTo = equalT msgTxt
+    -- msgTxtElem = elemT msgTxt
+
+    replyWithText  conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgT text upd)
+    replyWithTextQ conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkQuoteSendMsgT text upd)
+    reply  = replyWithText conn upd
+    replyQ = replyWithTextQ conn upd
+
+privMsgHandler :: Connection -> UserGroup -> Update -> RepliedTable -> IO ()
+privMsgHandler conn grp upd@(MUpdate updm) tb = do
   let userId' = sdr_id $ updm_sender updm
   usr' <- fetchUser grp userId'
   usr <- case usr' of
@@ -57,20 +88,22 @@ msgHandler conn grp upd@(MUpdate updm) tb = do
   changedUsr <- stateHandler usr conn upd tb
   _ <- replaceUser grp (incStage 1 changedUsr) -- stage increase by default
   pure ()
-msgHandler _ _ _ _ = pure ()
+privMsgHandler _ _ _ _ = pure ()
 
 stateHandler :: User -> Connection -> Update -> RepliedTable -> IO User
-
 stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
   Greeting -> do
         hello <- rndPickText Hello
         let rmk = sdr_remark $ updm_sender updm
-        if sdr_nickname (updm_sender updm) == sdr_remark (updm_sender updm)
-          then reply "您好，很抱歉打断您，但我现在不再使用QQ。您可以通过此QQ向我留言，也可以通过发送『联系方式』来获取我的直接联系方式。"
-          else reply (hello <> "，" <> fromMaybe "人类" rmk <> "，很抱歉打断您，但我现在不再使用QQ。")
-        reply "您可以通过此QQ向我留言，如果有特殊或紧急事件，请直接获取我的联系方式。"
-        reply "通常情况下，我建议您『留言』。您的留言将会被合并成一封电子邮件自动发送至我的邮箱，我将在看到后尽快回复您。"
-        reply "如果您想要留言，请发送『留言』；如果您想要获取我的联系方式，请发送『联系方式』。或发送『帮助』以获取提示。"
+        -- if sdr_nickname (updm_sender updm) == sdr_remark (updm_sender updm)
+          -- then reply "您好，我目前不使用QQ。"
+          -- else reply ("嗨，" <> fromMaybe "人类" rmk <> "，很抱歉，我目前不使用QQ。")
+        -- reply "您可以通过此QQ向我留言，如果有特殊或紧急事件，请直接获取我的联系方式。" >> threadDelay 3000000
+        -- reply "通常情况下，我建议您『留言』。您的留言将会被合并成一封电子邮件自动发送至我的邮箱，我将在看到后尽快回复您。" >> threadDelay 6000000
+        -- reply "如果您想要留言，请发送『留言』；如果您想要获取我的联系方式，请发送『联系方式』。或发送『帮助』以获取提示。"
+        reply "嗨，我现在似乎并不在线呢。"
+        reply "不过你可以跟这个机器人先玩一会儿！"
+        reply "或者...发送『留言』来给我留言。"
         pure $ setState Idle usr
 
   Recording -> case stage usr of
@@ -85,7 +118,7 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
                           zipWith ((\a b -> "(" <> a <> ") " <> b) . T.pack . show) [1..] $
                             fmap (fromJust . getText) (reverse $ recordedMsg usr)
                 replyOnce "请注意，若您的留言中含有图片、文件，它们将会以附件的形式发送(尽管在此处不会显示)。"
-                replyOnce "『追加』继续添加内容\n『编辑』指定消息编号修改内容\n『发送』合并消息发送\n『取消』取消并清空所有消息"
+                replyOnce "『追加』继续添加内容\n『编辑』指定消息编号修改内容\n\n『发送』发送消息\n『取消』取消并清空所有消息"
                 pure (jmpStage 1 usr{recordedMsg = recordedMsg usr})
         | msgTxtEqTo "撤回" -> do
             if null $ recordedMsg usr
@@ -107,7 +140,7 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
               else pure ()
             pure (setState Idle usr{recordedMsg = []})
         | msgTxtEqTo "发送" -> do
-            -- Todo: sendMail
+            sendUpdateToEmail (recordedMsg usr)
             replyQ "消息已发送。"
             threadDelay 10000000
             goodbye <- rndPickText Goodbye
@@ -194,7 +227,7 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
                  pure (setState Searching usr)
            | msgTxtElem ["帮助"] -> do
                 reply "『留言』\n\
-                      \    进入留言模式。在此过程中您可以连续发送多条消息，结束后可查看已记录的内容，之后再确认是否要发送留言。如果输入错误，您需要向我发送“撤回”以删除最近记录的信息(使用QQ内的撤回将不起作用)。\n\n\
+                      \    进入留言模式。\n\n\
                       \『联系方式』\n\
                       \    获取我的联系方式。请注意，当您获取我的联系方式时，我将收到一条通知。\n\n\
                       \『搜索』(待完善)\n\
@@ -204,18 +237,20 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
                       \"
                 pure usr
            | msgTxtEqTo "关于" -> do
-                replyOnce "还没有写哦"
+                -- replyOnce "「关于」\n\n\
+                --           \自动应答机器人，项目代号NuBot，使用函数式编程语言Haskell编写，托管于CloudCone洛杉矶服务器。\n\n\
+                --           \我想要让自己脱离社交软件与即时通讯软件的束缚，它们已经消耗我太多时间了。如果能得到正确的使用，这种留言的方式将能够些许提升交流的效率。\n\n\
+                --           \如果这样为您带来任何的不适，我感到十分抱歉。"
+                pure usr
+           | msgTxtEqTo "ping" -> do
+                replyQ "pong!"
                 pure usr
            | msgTxtEqTo "联系方式" -> do
-                -- reply "手机:\n\
-                --       \  - 18922678551\n\
-                --       \邮箱:\n\
-                --       \  - ne1s07@outlook.com"
-                -- replyOnce "有急事吗？"
                 replyOnce "这个功能暂时关闭，但是您的请求已经上报；我将多加关注您的信息。"
+                replyOnce "您也可以直接发送邮件至我的邮箱"
+                reply "ne1s07@outlook.com"
                 pure usr
-           | otherwise -> replyOnce "抱歉，我无法处理非指令消息。" >> pure usr
-           ---- | msgTxtEqTo "有" -> replyOnce "有也没辙" >> pure usr
+           | otherwise -> replyOnce "无法处理的非指令消息。发送『帮助』以查看此机器人的功能。" >> pure usr
 
   where
     msgTxt = fromMaybe "" $ getPlainText upd
@@ -236,6 +271,8 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
          then pure ()
          else f txt >> markReplied tb txt (userId usr)
 stateHandler usr _ _ _ = pure usr
+
+
 
 data NameError = TooLong | TooShort | ContainDigit
 
@@ -284,7 +321,7 @@ trimT txt = trimEnd $ trimHead txt
         then trimHead $ T.tail txt
         else txt
     ignore :: Text
-    ignore = ",./?!:;'~`()-" <>
+    ignore = " ,./?!:;'~`()-" <>
                "，。、’；：～！？（）" <>
                "的吧了呀也哪呢阿哈呗啊啦哩咧哇耶哉罢呐咯嘛噢呕哟呦"
 

@@ -10,8 +10,8 @@ import Prelude hiding (log)
 import qualified Data.Text.IO as T
 
 enviroment :: String
-enviroment = "Debug"
--- enviroment = "Release"
+-- enviroment = "Debug"
+enviroment = "Release"
 
 data LogTag = Info | Warning | Error | Debug
   deriving (Show, Eq)

@@ -22,7 +22,7 @@ let
 in pkgs.haskell-nix.project {
   # 'cleanGit' cleans a source directory based on the files known by git
   src = pkgs.haskell-nix.haskellLib.cleanGit {
-    name = "haskell-nix-project";
+    name = "nubot";
     src = ./.;
   };
   # Specify the GHC version to use.

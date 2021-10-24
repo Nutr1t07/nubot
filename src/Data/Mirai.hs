@@ -14,6 +14,12 @@ isFromUser (MUpdate MessageUpdate{..})
   | otherwise = False
 isFromUser _ = False
 
+isFromGroup :: Update -> Bool 
+isFromGroup (MUpdate MessageUpdate{..}) 
+  | updm_type == "GroupMessage" = True
+  | otherwise = False
+isFromGroup _ = False
+
 isEvent :: Update -> Bool
 isEvent (EUpdate _) = True
 isEvent _ = False
@@ -67,6 +73,14 @@ getUserId (MUpdate MessageUpdate{..}) = Just $ sdr_id updm_sender
 getUserId (EUpdate EventUpdate{..}) = upde_fromId
 getUserId _ = Nothing
 
+getUserNick :: Update -> Maybe Text
+getUserNick (MUpdate MessageUpdate{..}) = sdr_nickname updm_sender
+getUserNick _ = Nothing
+
+getUserRemark :: Update -> Maybe Text
+getUserRemark (MUpdate MessageUpdate{..}) = sdr_remark updm_sender
+getUserRemark _ = Nothing
+
 getGroupId :: Update -> Maybe Integer
 getGroupId (MUpdate MessageUpdate{..}) = grp_id <$> sdr_group updm_sender
 getGroupId (EUpdate EventUpdate{..}) = upde_groupId
@@ -79,7 +93,16 @@ getChatType (MUpdate MessageUpdate{..}) = case updm_type of
   "TempMessage"     -> Just Temp
   "StrangerMessage" -> Just Friend
   _                 -> Nothing
-getChatType _ = Nothing 
+getChatType _ = Nothing
+
+getImgUrls :: Update -> Maybe [Text]
+getImgUrls (MUpdate MessageUpdate{..}) = Just $ directUrls <> quoteUrls
+  where 
+    directUrls    = getUrls updm_messageChain
+    quoteUrls     = foldMap getUrls quoteChain
+    getUrls chain = map (fromJust . cm_url) $ filter (\x -> cm_type x == "Image") chain
+    quoteChain    = map (fromJust . cm_origin) $ filter (\x -> cm_type x == "Quote") updm_messageChain
+getImgUrls _ = Nothing
 
 getPlainText :: Update -> Maybe Text
 getPlainText (MUpdate MessageUpdate{..}) = Just $ foldMap (fromJust . cm_text) $ filter (\x -> cm_type x == "Plain") updm_messageChain
@@ -91,7 +114,7 @@ getText (MUpdate MessageUpdate{..}) = Just $ foldMap toText updm_messageChain
     toText x = case cm_type x of
       "Plain"          -> fromMaybe "[nullText]"  $ cm_text x
       "At"             -> fromMaybe "[nullAt]"    $ cm_display x
-      "Quote"          -> maybe "[nullQuote]" ((<> ")") . ("(Q> "<>) . toText) (cm_origin x)
+      "Quote"          -> foldMap ((<> ")") . ("(Q> "<>) . toText) $ fromMaybe [] (cm_origin x)
       "AtAll"          -> "[@全体成员]"
       "Face"           -> "[表情]"
       "Image"          -> "[图片]"

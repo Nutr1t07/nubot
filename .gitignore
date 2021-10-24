@@ -1,2 +1,5 @@
 .stack-work/
 *~
+result
+savedUser.dat
+config.json

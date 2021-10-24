@@ -31,6 +31,7 @@ library
       Data.Queue
       Data.TaskQueue
       Data.User
+      Module.ImageSearch
       Module.WebSearch
       Network.Mail
       Network.Mirai
@@ -51,6 +52,7 @@ library
     , base >=4.7 && <5
     , bytestring
     , lens
+    , mime-mail
     , random
     , serialise
     , smtp-mail
@@ -73,6 +75,7 @@ executable nubot-exe
     , base >=4.7 && <5
     , bytestring
     , lens
+    , mime-mail
     , nubot
     , random
     , serialise
@@ -97,6 +100,7 @@ test-suite nubot-test
     , base >=4.7 && <5
     , bytestring
     , lens
+    , mime-mail
     , nubot
     , random
     , serialise

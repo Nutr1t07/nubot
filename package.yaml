@@ -24,18 +24,23 @@ dependencies:
 - websockets
 - bytestring
 - text
-- aeson
 - time
-# - QuickCheck
-# - hspec
+
 - random
-- smtp-mail
 - serialise
+- aeson
+
 - wreq
 - lens
+
 - stringsearch
 - utf8-string
 - uri-encode
+
+- mime-mail
+- smtp-mail
+# - sqlite-simple
+
 
 library:
   source-dirs: src

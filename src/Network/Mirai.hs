@@ -4,7 +4,7 @@
 
 module Network.Mirai where
 
-import Control.Monad (forever)
+import Control.Monad (forever, void, replicateM_)
 import Data.Aeson ( encode, decode, Value, ToJSON (toJSON), eitherDecode )
 import qualified Network.WebSockets as WS
 
@@ -18,6 +18,7 @@ import Type.Mirai.Common (ChatType)
 import Util.Json ( dropToJSON )
 import Util.Log ( logWT, LogTag(..), logWT'C8, logErr )
 import Control.Concurrent (threadDelay)
+import Control.Exception (try, SomeException (SomeException))
 
 type Connection = WS.Connection
 
@@ -38,12 +39,17 @@ runConn Config{..} f = WS.runClient ws_addr ws_port path app
 
             case msg of
               Right wsdata -> do
-                f (wrap_data wsdata) conn
+                exWrap $ f (wrap_data wsdata) conn
               Left err -> logErr "parsing data from websocket" err >> pure ()
 
+      exWrap f = do
+                  a <- try f :: IO (Either SomeException ())
+                  case a of
+                    Left err -> logErr "critical error" (show err)
+                    _ -> pure ()
 
 sendMessage :: ChatType -> Connection -> Maybe RequestContent -> IO ()
-sendMessage = (((threadDelay 2000000 >>) .) .) . sendMessage'  -- send with delay of 3 sec by default
+sendMessage = (((threadDelay 2000000 >>) .) .) . sendMessage'  -- send with a delay of 3 sec by default
 
 sendMessage' :: ChatType -> Connection -> Maybe RequestContent -> IO ()
 sendMessage' chatType = sendCommand  ("send" <> show chatType <> "Message")
@@ -55,7 +61,7 @@ sendCommand cmd conn val = case val of
     logWT'C8 Debug ("sending message: " <> toStrict wrapped)
     WS.sendTextData conn wrapped
   Nothing -> logWT'C8 Debug "message didn't send: Nothing"
-    
+
 
 data WSWrap = WSWrap {
     wrap_syncId :: Int
