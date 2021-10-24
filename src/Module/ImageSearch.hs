@@ -7,6 +7,7 @@ import           Control.Exception              ( SomeException (SomeException)
 import           Control.Lens                   ( (&)
                                                 , (.~)
                                                 , (^.)
+                                                , (?~)
                                                 )
 import           Control.Monad                  ( join )
 import           Data.Aeson                     ( (.:)
@@ -27,10 +28,13 @@ import           Network.Wreq                  as Wreq
                                                 , getWith
                                                 , param
                                                 , responseBody
+                                                , proxy
+                                                , httpProxy
                                                 )
-import           Util.Log                       ( LogTag(Info)
-                                                , logWT
+import           Util.Log                       ( LogTag(Info, Debug)
+                                                , logWT, logWT'C8
                                                 )
+import qualified Data.ByteString.Lazy as BL
 import           Util.Misc                      as Misc
                                                 ( unlines )
 import Type.Mirai.Update (Update)
@@ -42,11 +46,11 @@ runSauceNAOSearch url = runEitherT $ do
   _ <- if url == T.empty then exitErr "无法获取图片地址。" else pure ()
   r <- modErr getErrHint $
          try $ Wreq.getWith opts "https://saucenao.com/search.php"
-    
-  rst' <- modErr (T.pack . ("解析JSON错误: " <>))
-             (pure $ eitherDecode $ r ^. responseBody)
 
-  rst <- case rst' of
+  rst' <- modErr (T.pack . ("解析JSON错误: " <>))
+             (pure $ eitherDecode (r ^. responseBody))
+
+  rst <- case sr_results rst' of
            [] -> exitErr "SauceNAO 没有返回任何结果。"
            x -> pure $ head x
            
@@ -61,6 +65,7 @@ runSauceNAOSearch url = runEitherT $ do
   apiKey = "d4c5f40172cb923c73c409538f979482a469d5a7"
   opts =
     defaults
+      &  proxy ?~ httpProxy "localhost" 10809
       &  param "db"
       .~ ["999"]
       &  param "output_type"
@@ -71,32 +76,6 @@ runSauceNAOSearch url = runEitherT $ do
       .~ [apiKey]
       &  param "url"
       .~ [url]
-
--- runSauceNAOSearch :: 
--- runSauceNAOSearch update = do
---   imgUrl <- case getImgUrls update of
---                 Nothing -> exitErr "无效图片。"
---                 Just [] -> exitErr "无效图片。"
---                 Just x  -> pure $ head x
-
---   lift $ logWT Info $ "running SauceNAO search: " <> show imgUrl
-
---   txt <- case runEitherT $ runSauceNAOSearch imgUrl of
-  
-
-  -- let highestSimilarity =
-  --       fromRight 0 $ fst <$> decimal (sr_similarity (head $ sr_results result)) :: Int
-  -- urlMsgs <- if highestSimilarity > 70
-  --   then pure []
-  --   else lift $ processAscii2dSearch (T.empty, update)
-
-  -- pure $ urlMsgs <> catMaybes sendMsgs
-
--- getText :: Update -> SnaoResult -> IO (Maybe SendMsg)
--- getText update rst = do
---   infos <- getInfo rst
---   pure . Just $ makeReqFromUpdate' update (sr_thumbnail rst) $ Misc.unlines
---     infos
 
 getInfo :: SnaoResult -> Text
 getInfo sRst = do
@@ -110,14 +89,10 @@ getInfo sRst = do
    Misc.unlines $ catMaybes $  [Just "# SauceNAO"]
     <> mkInfo "相似度" similarity
     <> mkInfo "图源"  source
-    <> mkInfo "域名"  siteDomain
     <> mkInfo "标题"  title
     <> mkInfo "画师"  pixiv_mem
     <> mkInfo "本子"  doujinshi
-  where mkInfo key value = (: []) $ (("[" <> key <> "] ") <>) <$> value
-
-
-
+  where mkInfo key value = (: []) $ ((key <> "> ") <>) <$> value
 
 
 data SnaoResults = SnaoResults

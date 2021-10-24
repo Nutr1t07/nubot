@@ -39,7 +39,7 @@ dependencies:
 
 - mime-mail
 - smtp-mail
-# - sqlite-simple
+- sqlite-simple
 
 
 library:

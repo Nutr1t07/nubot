@@ -1,7 +1,7 @@
 module Main where
 
 import Network.Mirai
-import Util.Log 
+import Util.Log
 import Data.Aeson
 import Data.ByteString.Lazy
 import Data.Text
@@ -14,9 +14,11 @@ import Type.Mirai.Update
 import AutoReply
 import Data.TaskQueue (emptyTaskQueue)
 import Data.User
+import Data.Mirai (initMsgLogDB)
 
 main :: IO ()
 main = do
+  initMsgLogDB
   cfg <- readConfig
   when (isJust cfg) $ do
     userGroup <- getUserGroup
@@ -28,9 +30,7 @@ main = do
 getUserGroup :: IO UserGroup
 getUserGroup = do
   grp <- readUserGroup  -- read from local file
-  case grp of
-    Just x -> pure x
-    Nothing -> emptyUserGroup
+  maybe emptyUserGroup pure grp
 
 readConfig :: IO (Maybe Config)
 readConfig = let tag = "parsing config" in do

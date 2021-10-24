@@ -56,6 +56,7 @@ library
     , random
     , serialise
     , smtp-mail
+    , sqlite-simple
     , stringsearch
     , text
     , time
@@ -80,6 +81,7 @@ executable nubot-exe
     , random
     , serialise
     , smtp-mail
+    , sqlite-simple
     , stringsearch
     , text
     , time
@@ -105,6 +107,7 @@ test-suite nubot-test
     , random
     , serialise
     , smtp-mail
+    , sqlite-simple
     , stringsearch
     , text
     , time

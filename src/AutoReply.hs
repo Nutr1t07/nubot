@@ -25,9 +25,11 @@ import Module.ImageSearch (runSauceNAOSearch)
 import Util.Log (logWT'T, LogTag (Debug, Info), logWT, logErr)
 import Type.Mirai.Common (ChatType(Friend))
 import Network.Mail (sendUpdateToEmail)
+import Data.Mirai (logMsg)
 
 mainHandler :: Int -> TaskQueue -> UserGroup -> RepliedTable -> Update -> Connection -> IO ()
 mainHandler selfId tasks grp tb upd conn = do
+  logMsg upd
   when (isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId) $ addTask tasks $
     privMsgHandler conn grp upd tb
   when (isAddFriendEvent upd) $ addFriendHandler conn grp upd
@@ -48,15 +50,14 @@ addFriendHandler conn grp upd@(EUpdate upde) = do
   where reply text = sendMessage Friend conn (mkSendMsgT text upd)
 addFriendHandler _ _ _ = pure ()
 
-
 grpMsgHandler :: Connection -> Update -> IO ()
 grpMsgHandler conn upd@(MUpdate updm) = do
   case () of
       _ | msgTxtEqTo "sp" -> do
-          let imgUrl = case getImgUrls upd of
-                Nothing -> ""
-                Just [] -> ""
-                Just x  -> head x
+          urls <- getImgUrls' upd
+          let imgUrl = case urls of
+                [] -> ""
+                (x:_)  -> x
 
           logWT Info $ "running SauceNAO search: " <> show imgUrl
           logWT Debug $ "got image urls: " <> show (getImgUrls upd)
@@ -77,6 +78,7 @@ grpMsgHandler conn upd@(MUpdate updm) = do
     replyWithTextQ conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkQuoteSendMsgT text upd)
     reply  = replyWithText conn upd
     replyQ = replyWithTextQ conn upd
+grpMsgHandler _ _ = pure ()
 
 privMsgHandler :: Connection -> UserGroup -> Update -> RepliedTable -> IO ()
 privMsgHandler conn grp upd@(MUpdate updm) tb = do
@@ -324,6 +326,7 @@ trimT txt = trimEnd $ trimHead txt
     ignore = " ,./?!:;'~`()-" <>
                "，。、’；：～！？（）" <>
                "的吧了呀也哪呢阿哈呗啊啦哩咧哇耶哉罢呐咯嘛噢呕哟呦"
+
 
 checkTrueOrFalse :: Text -> Maybe Bool
 checkTrueOrFalse txt' = check $ trimT txt'
