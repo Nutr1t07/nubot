@@ -47,7 +47,7 @@ addFriendHandler conn grp upd@(EUpdate upde) = do
   reply "嗨，我当前不在线"
   reply "您的好友请求已由机器人自动同意，发送『帮助』以查看此机器人的功能"
   void $ replaceUser grp (setState Idle usr)
-  where reply text = sendMessage Friend conn (mkSendMsgT text upd)
+  where reply text = sendMessage Friend conn (mkSendMsgT upd text)
 addFriendHandler _ _ _ = pure ()
 
 grpMsgHandler :: Connection -> Update -> IO ()
@@ -62,10 +62,11 @@ grpMsgHandler conn upd@(MUpdate updm) = do
           logWT Info $ "running SauceNAO search: " <> show imgUrl
           logWT Debug $ "got image urls: " <> show (getImgUrls upd)
           rst <- runSauceNAOSearch imgUrl
-          let txt = case rst of
-                      Right x -> x
-                      Left err -> err
-          replyQ txt
+          case rst of
+            Right (url, txt, Nothing) -> replyPicQ txt url
+            Right (url, txt, Just more) -> replyPicQ txt url >> replyQ more
+            Left err -> replyQ err
+          
         | msgTxtEqTo "ping" -> replyQ "1 packets transmitted, 1 received, 0% packet loss"
         | otherwise -> pure ()
   where
@@ -74,10 +75,9 @@ grpMsgHandler conn upd@(MUpdate updm) = do
     msgTxtEqTo = equalT msgTxt
     -- msgTxtElem = elemT msgTxt
 
-    replyWithText  conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgT text upd)
-    replyWithTextQ conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkQuoteSendMsgT text upd)
-    reply  = replyWithText conn upd
-    replyQ = replyWithTextQ conn upd
+    reply  text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgT upd text)
+    replyQ text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgTQ upd text)
+    replyPicQ text url = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgPQ upd text url)
 grpMsgHandler _ _ = pure ()
 
 privMsgHandler :: Connection -> UserGroup -> Update -> RepliedTable -> IO ()
@@ -260,8 +260,8 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
     msgTxtEqTo = equalT msgTxt
     msgTxtElem = elemT msgTxt
 
-    replyWithText  conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgT text upd)
-    replyWithTextQ conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkQuoteSendMsgT text upd)
+    replyWithText  conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgT upd text)
+    replyWithTextQ conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgTQ upd text)
     reply  = replyWithText conn upd
     replyQ = replyWithTextQ conn upd
     replyOnce  = replyOnce' reply

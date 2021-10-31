@@ -63,7 +63,7 @@ runBaiduSearch query = do
           Nothing -> pure (Nothing, Just url')
           Just realRst -> pure (Just (concatWord . getWords $ realRst), Just url')
 
- where  
+ where
   replaceBetween left right txt f =
     let (oriLeft, x) = Misc.breakOnEnd left txt
         (middle, remain) = Misc.breakOn right x in

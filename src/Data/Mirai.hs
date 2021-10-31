@@ -42,25 +42,34 @@ mkFriendEventResp upd@(EUpdate EventUpdate{..}) op =
     else Nothing
 mkFriendEventResp _ _ = Nothing
 
-mkTextMessageChain :: Text -> ChainMessage
-mkTextMessageChain txt = (emptyChainMessage "Plain") {cm_text = Just txt}
 
-mkSendMsgT :: Text -> Update -> Maybe RequestContent
-mkSendMsgT txt upd@(MUpdate MessageUpdate{..}) =
+mkSendMsgPQ :: Update -> Text -> Text -> Maybe RequestContent
+mkSendMsgPQ upd@(MUpdate MessageUpdate{..}) txt url = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> mkSendMsgP upd txt url
+mkSendMsgPQ _ _ _ = Nothing
+
+mkSendMsgP :: Update -> Text -> Text -> Maybe RequestContent
+mkSendMsgP upd txt url = (\(RSendMsg x) -> RSendMsg x{sm_messageChain = picChain : sm_messageChain x }) <$> mkSendMsgT upd txt
+  where picChain = (emptyChainMessage "Image"){cm_url = Just url}
+
+mkSendMsgT :: Update -> Text -> Maybe RequestContent
+mkSendMsgT upd@(MUpdate MessageUpdate{..}) txt =
   let initMsg = case getChatType upd of
                   Just Group  -> Just $ SendMsg Nothing (getGroupId upd) Nothing []
                   Just Temp   -> Just $ SendMsg (getUserId upd) (getGroupId upd) Nothing []
                   Just Friend -> Just $ SendMsg (getUserId upd) Nothing Nothing []
                   Nothing -> Nothing in
   (\x -> RSendMsg $ x {sm_messageChain = [mkTextMessageChain txt]}) <$> initMsg
-mkSendMsgT txt upd@(EUpdate EventUpdate{..}) = case getUserId upd of
+mkSendMsgT upd@(EUpdate EventUpdate{..}) txt = case getUserId upd of
   Just usrId' -> Just $ RSendMsg $ SendMsg (Just usrId') (getGroupId upd) Nothing [mkTextMessageChain txt]
   Nothing -> Nothing
 mkSendMsgT _ _ = Nothing
 
-mkQuoteSendMsgT :: Text -> Update -> Maybe RequestContent
-mkQuoteSendMsgT txt upd@(MUpdate MessageUpdate{..}) = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> mkSendMsgT txt upd
-mkQuoteSendMsgT _ _ = Nothing
+mkTextMessageChain :: Text -> ChainMessage
+mkTextMessageChain txt = (emptyChainMessage "Plain") {cm_text = Just txt}
+
+mkSendMsgTQ :: Update -> Text -> Maybe RequestContent
+mkSendMsgTQ upd@(MUpdate MessageUpdate{..}) txt = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> mkSendMsgT upd txt
+mkSendMsgTQ _ _ = Nothing
 
 getMessageTime :: Update -> Maybe Integer
 getMessageTime (MUpdate MessageUpdate{updm_messageChain = chain})= cm_time $ head chain

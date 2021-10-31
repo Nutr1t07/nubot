@@ -17,7 +17,7 @@ import           Data.Aeson                     ( (.:)
                                                 , withObject
                                                 )
 import           Data.Either                    ( fromRight )
-import           Data.Maybe                     ( catMaybes
+import           Data.Maybe                     ( catMaybes, isNothing, fromJust
                                                 )
 import           Data.Text                      ( Text
                                                 )
@@ -29,19 +29,20 @@ import           Network.Wreq                  as Wreq
                                                 , param
                                                 , responseBody
                                                 , proxy
-                                                , httpProxy
+                                                , httpProxy, get
                                                 )
 import           Util.Log                       ( LogTag(Info, Debug)
                                                 , logWT, logWT'C8
                                                 )
 import qualified Data.ByteString.Lazy as BL
 import           Util.Misc                      as Misc
-                                                ( unlines )
+                                                ( unlines, searchBetweenBL )
 import Type.Mirai.Update (Update)
 import Data.Monads (EitherT(runEitherT, EitherT), modErr, MonadTrans (lift), exitErr)
 import Data.Mirai (getImgUrls)
+import qualified Data.Text.Encoding as T (decodeUtf8)
 
-runSauceNAOSearch :: Text -> IO (Either Text Text)
+runSauceNAOSearch :: Text -> IO (Either Text (Text,Text,Maybe Text))
 runSauceNAOSearch url = runEitherT $ do
   _ <- if url == T.empty then exitErr "无法获取图片地址。" else pure ()
   r <- modErr getErrHint $
@@ -53,8 +54,19 @@ runSauceNAOSearch url = runEitherT $ do
   rst <- case sr_results rst' of
            [] -> exitErr "SauceNAO 没有返回任何结果。"
            x -> pure $ head x
-           
-  pure $ getInfo rst
+
+  let highestSimilarity =
+        fromRight 0 $ fst <$> decimal (sr_similarity rst) :: Int
+  c <- if highestSimilarity > 70
+    then pure Nothing
+    else do
+      urls' <- lift $ getSearchUrls url
+      case urls' of
+        Left err -> pure $ Just err
+        Right x ->  pure $ Just x
+
+  let (a,b) = getInfo rst
+  pure (a,b,c)
 
  where
   getErrHint :: SomeException -> Text
@@ -65,7 +77,7 @@ runSauceNAOSearch url = runEitherT $ do
   apiKey = "d4c5f40172cb923c73c409538f979482a469d5a7"
   opts =
     defaults
-      &  proxy ?~ httpProxy "localhost" 10809
+      -- &  proxy ?~ httpProxy "localhost" 10809
       &  param "db"
       .~ ["999"]
       &  param "output_type"
@@ -77,16 +89,18 @@ runSauceNAOSearch url = runEitherT $ do
       &  param "url"
       .~ [url]
 
-getInfo :: SnaoResult -> Text
-getInfo sRst = do
+getInfo :: SnaoResult -> (Text, Text)
+getInfo sRst =
   let similarity = pure $ sr_similarity sRst
       source     = head <$> sr_ext_url sRst
       siteDomain = T.takeWhile (/= '/') . T.drop 2 . T.dropWhile (/= '/') <$> source
       title     = sr_title sRst
       pixiv_mem = sr_pixiv_member sRst
-      doujinshi = sr_doujinshi_name sRst in
+      doujinshi = sr_doujinshi_name sRst
+      thumbnail = sr_thumbnail sRst in
 
-   Misc.unlines $ catMaybes $  [Just "# SauceNAO"]
+  (,) thumbnail $
+  Misc.unlines $ catMaybes $  [Just "# SauceNAO"]
     <> mkInfo "相似度" similarity
     <> mkInfo "图源"  source
     <> mkInfo "标题"  title
@@ -130,3 +144,30 @@ instance FromJSON SnaoResult where
       <*> ((v .: "data") >>= (.:? "jp_name"))
       <*> ((v .: "data") >>= (.:? "member_name"))
       <*> ((v .: "data") >>= (.:? "pixiv_id"))
+
+
+getAscii2dUrls :: Text -> IO (Maybe (Text, Text))
+getAscii2dUrls imgUrl = do
+  r <- Wreq.get $ "https://ascii2d.net/search/url/" <> T.unpack imgUrl
+  let rContent = r ^. responseBody
+  let colorUrl =
+        fixUrl . ("color" <>) <$> Misc.searchBetweenBL "color" "\"" rContent
+  let bovwUrl =
+        fixUrl . ("bovw" <>) <$> Misc.searchBetweenBL "bovw" "\"" rContent
+  pure $ (,) <$> colorUrl <*> bovwUrl
+  where fixUrl =  T.decodeUtf8 . BL.toStrict . ("https://ascii2d.net/search/" <>)
+
+getSearchUrls :: Text -> IO (Either Text Text)
+getSearchUrls imgUrl = runEitherT $ do
+    if imgUrl == T.empty then exitErr "无法获取图片地址。" else pure ()
+    result  <- lift $ getAscii2dUrls imgUrl
+    if isNothing result then exitErr "Ascii2d 没有返回结果" else pure ()
+    pure $ Misc.unlines
+      [ "A2d色合> " <> fst (fromJust result)
+      , "A2d特征> " <> snd (fromJust result)
+      , "Yandex> " <> yandexHost <> imgUrl
+      ]
+ where
+  
+  yandexHost =
+    "https://yandex.com/images/search?source=collections&rpt=imageview&url="
