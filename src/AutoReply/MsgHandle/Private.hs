@@ -20,8 +20,8 @@ import Data.Text.Read (decimal)
 import Data.Either (fromRight)
 import Data.Time (getCurrentTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime, utcTimeToPOSIXSeconds)
-import Module.WebSearch (runBaiduSearch)
-import Module.ImageSearch (runSauceNAOSearch)
+import Module.WebSearch
+import Module.ImageSearch
 import Util.Log (logWT'T, LogTag (Debug, Info), logWT, logErr)
 import Type.Mirai.Common (ChatType(Friend))
 import Network.Mail (sendUpdateToEmail)
@@ -140,11 +140,15 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
           replyQ "已退出搜索模式。"
           pure (setState Idle usr)
       | otherwise ->  do
-          rst <- runBaiduSearch msgTxt
-          case rst of
-            (Just txt, Just url) -> reply $ "- 百度百科\n\n" <> txt <> "\n\n" <> url
-            (_       , Nothing)  -> reply "- 百度百科\n\n无结果"
-            (Nothing , Just url) -> reply $ "- 百度百科\n\n查询到结果，但没有摘要，请访问该页面以查看结果\n\n" <> url
+          logWT'T Info $ "running search: " <> msgTxt
+          baikeRst <- runBaikeSearch msgTxt
+          case baikeRst of
+            (Just txt, Just url) -> reply $ "[百度百科]\n\n" <> txt <> "\n\n" <> url
+            (_       , Nothing)  -> pure ()
+            (Nothing , Just url) -> reply $ "[百度百科]\n\n查询到结果，但没有摘要，请访问该页面以查看结果\n\n" <> url
+          baiduRst <- runBaiduSearch msgTxt
+          case baiduRst of
+            (link, title, abstract) -> reply $ "[百度]\n\n" <> title <> "\n\n" <> abstract <> "\n\n" <> link
           pure usr
 
   Idle -> case () of

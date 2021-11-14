@@ -1,9 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Module.WebSearch where
 
-import           Util.Log                       ( LogTag(Info)
-                                                , logWT
-                                                )
 import           Control.Lens                   ( (&)
                                                 , (.~)
                                                 , (^.)
@@ -23,16 +20,11 @@ import           Data.Text                      ( Text
 import qualified Data.Text                     as Text
 import           Data.Text.Lazy                 ( toStrict )
 import           Data.Text.Lazy.Encoding        ( decodeUtf8 )
-import           Network.Wreq                   ( defaults
-                                                , get
-                                                , getWith
-                                                , header
-                                                , param
-                                                , responseBody
-                                                )
+import           Network.Wreq                  as Wreq
 import Data.Maybe (fromMaybe)
 import Util.Misc as Misc ( searchBetweenBL, breakOn, breakOnEnd )
 import Network.URI.Encode as URI ( encode )
+import Util.Log 
 
 getWords :: BL.ByteString -> [Text]
 getWords ""  = []
@@ -51,8 +43,56 @@ concatWord oStr = (mconcat . intersperse "\n\n") s
     let a = strip x
     in  if Text.last a == '。' then a : xs else (a <> head xs) : tail xs
 
-runBaiduSearch :: Text -> IO (Maybe Text, Maybe Text)
+runBaiduSearch :: Text -> IO (Text, Text, Text)
 runBaiduSearch query = do
+    resp <-  (^. responseBody) <$> getWith opts "https://www.baidu.com/s"
+    let ans = getFstAns resp
+    pure (getLink ans, getTitle ans, getAbstract ans)
+ where
+  replaceBetween left right txt f =
+    let (oriLeft, x) = Misc.breakOnEnd left txt
+        (middle, remain) = Misc.breakOn right x in
+    oriLeft <> f middle <> remain
+
+  sbl a b c = fromMaybe "" $ searchBetweenBL a b c 
+
+  getAbstract x = concatWord . getWords $ sbl
+    "abstract"
+    "<style>"
+    x
+
+  getLink x = toStrict . decodeUtf8 $ sbl
+    "href = \""
+    "\""
+    x
+
+  getTitle x = concatWord . getWords $ sbl
+    "<em"
+    "</a>"
+    x
+
+  getFstAns x = sbl
+    "result c-container new-pmd"
+    "</div><style>"
+    x
+  
+  opts =
+    defaults
+      & header "User-Agent" .~ ["Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:94.0) Gecko/20100101 Firefox/94.0"]
+      & header "Connection" .~ ["keep-alive" ]
+      & header "Accept" .~ ["text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"]
+      & header "Accept-Language" .~ ["zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7"]
+      & header "Accept-Encoding" .~ ["gzip, deflate, br"]
+      & header "Cache-Control" .~ ["max-age=0"]
+      & header "Cookie" .~ ["BAIDUID=858F77E4C160AB7E22BF809094082D94:FG=1; BIDUPSID=858F77E4C160AB7E0B7C30BD1DF06CE1; PSTM=1630820631; __yjs_duid=1_421bf5243711e4318ee861168de3bd4a1630820811466; ISSW=1; ISSW=1; BDUSS=9iLUlMZnY3SnljQWlhUjJRMkIxbzZYOUJRRlBvcHBkc1ZvUmhtZWdWLXNGMzFoRVFBQUFBJCQAAAAAAAAAAAEAAADEydGPTWVtb3J5X0V0ZXJuYWwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKyKVWGsilVhUm; BD_UPN=133352; NOJS=1; Hm_lvt_aec699bb6442ba076c8981c6dc490771=1636816308; BDSFRCVID=7WIOJexroG0kKanHb0xfboa7K6Kvqf7TDYrEOwXPsp3LGJLVgOBNEG0PtfdgS14-oxmHogKK3gOTH4LF_2uxOjjg8UtVJeC6EG0Ptf8g0M5; H_BDCLCKID_SF=tRk8oK-atDvDqTrP-trf5DCShUFs0x6dB2Q-XPoO3KJOOnjky-K2MfKVhULfB55ibj6h_Mbgy4op8P3y0bb2DUA1y4vpKMRGBeTxoUJ25JbJVIDmqtnWhfkebPRiJ-b9Qg-J2pQ7tt5W8ncFbT7l5hKpbt-q0x-jLTnhVn0MBCK0hD0wDT8hD6PVKgTa54cbb4o2WbCQJtQN8pcN2b5oQT8fyUQXBPDjLeraWbD5WKQvf4jIjpOUWJDkXpJvQnJjt2JxaqRC5h7I8l5jDh3Mb40s0NLJe4ROamby0hvctb3cShPmXMjrDRLbXU6BK5vPbNcZ0l8K3l02V-bIe-t2XjQhDHt8J50ttJ3aQ5rtKRTffjrnhPF3jp-PXP6-hnjy3bRWabj8Wn_2JbQPhPLbyTKU5lQhth3Ry6r42-39LPO2hpRjyxv4bU4YX4oxJpOJ5DnMbKD2HR7WDqnvbURvDP-g3-AJWU5dtjTO2bc_5KnlfMQ_bf--QfbQ0hOhqP-jBRIE3-oJqC-2MK863f; H_PS_PSSID=34447_35104_31254_35054_35048_34584_34505_34532_34916_34578_34606_34815_26350_35074_34868_35114_34994; BD_HOME=1; BDRCVFR[feWj1Vr5u3D]=I67x6TjHwwYf0; delPer=0; BD_CK_SAM=1; PSINO=7; ZD_ENTRY=baidu; Hm_lpvt_aec699bb6442ba076c8981c6dc490771=1636816308; COOKIE_SESSION=491_0_4_1_17_15_1_0_3_3_3_2_37_0_0_0_1636869640_0_1636883230%7C9%230_0_1636883230%7C1; channel=baidusearch; baikeVisitId=890f41d6-a881-40f8-8e1f-d063c9b85e66; BA_HECTOR=8hal010h0l0ga5a1e81gp1mth0q; H_PS_645EC=cf7cvLOcfgwcDZQj%2FzhokEDASz7dOuCAyqXl4hITTSedZyHu31D5pYOUOI1y1qSioWZn; sug=3; sugstore=1; ORIGIN=2; bdime=0; BDSVRTM=0; WWW_ST=1636883639028"]
+      & param "wd" .~ [query]
+      & param "ie" .~ ["utf-8"]
+      & param "pn" .~ ["0"]
+      & param "cl" .~ ["3"]
+      & param "rn" .~ ["10"]
+
+runBaikeSearch :: Text -> IO (Maybe Text, Maybe Text)
+runBaikeSearch query = do
     url <- getFstUrl <$> getWith opts "https://www.baidu.com/s"
     case url of
       Nothing -> pure (Nothing, Nothing)
@@ -80,16 +120,15 @@ runBaiduSearch query = do
       (BL.drop 180000 (content ^. responseBody))
   opts =
     defaults
-      &  header "User-Agent"
-      .~ [ "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:34.0) Gecko/20100101 Firefox/73.0"
-         ]
-      &  param "wd"
-      .~ [query <> " site:baike.baidu.com"]
-      &  param "ie"
-      .~ ["utf-8"]
-      &  param "pn"
-      .~ ["0"]
-      &  param "cl"
-      .~ ["3"]
-      &  param "rn"
-      .~ ["100"]
+      & header "User-Agent" .~ ["Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:94.0) Gecko/20100101 Firefox/94.0"]
+      & header "Connection" .~ ["keep-alive" ]
+      & header "Accept" .~ ["text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"]
+      & header "Accept-Language" .~ ["zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7"]
+      & header "Accept-Encoding" .~ ["gzip, deflate, br"]
+      & header "Cache-Control" .~ ["max-age=0"]
+      & header "Cookie" .~ ["BAIDUID=858F77E4C160AB7E22BF809094082D94:FG=1; BIDUPSID=858F77E4C160AB7E0B7C30BD1DF06CE1; PSTM=1630820631; __yjs_duid=1_421bf5243711e4318ee861168de3bd4a1630820811466; ISSW=1; ISSW=1; BDUSS=9iLUlMZnY3SnljQWlhUjJRMkIxbzZYOUJRRlBvcHBkc1ZvUmhtZWdWLXNGMzFoRVFBQUFBJCQAAAAAAAAAAAEAAADEydGPTWVtb3J5X0V0ZXJuYWwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKyKVWGsilVhUm; BD_UPN=133352; NOJS=1; Hm_lvt_aec699bb6442ba076c8981c6dc490771=1636816308; BDSFRCVID=7WIOJexroG0kKanHb0xfboa7K6Kvqf7TDYrEOwXPsp3LGJLVgOBNEG0PtfdgS14-oxmHogKK3gOTH4LF_2uxOjjg8UtVJeC6EG0Ptf8g0M5; H_BDCLCKID_SF=tRk8oK-atDvDqTrP-trf5DCShUFs0x6dB2Q-XPoO3KJOOnjky-K2MfKVhULfB55ibj6h_Mbgy4op8P3y0bb2DUA1y4vpKMRGBeTxoUJ25JbJVIDmqtnWhfkebPRiJ-b9Qg-J2pQ7tt5W8ncFbT7l5hKpbt-q0x-jLTnhVn0MBCK0hD0wDT8hD6PVKgTa54cbb4o2WbCQJtQN8pcN2b5oQT8fyUQXBPDjLeraWbD5WKQvf4jIjpOUWJDkXpJvQnJjt2JxaqRC5h7I8l5jDh3Mb40s0NLJe4ROamby0hvctb3cShPmXMjrDRLbXU6BK5vPbNcZ0l8K3l02V-bIe-t2XjQhDHt8J50ttJ3aQ5rtKRTffjrnhPF3jp-PXP6-hnjy3bRWabj8Wn_2JbQPhPLbyTKU5lQhth3Ry6r42-39LPO2hpRjyxv4bU4YX4oxJpOJ5DnMbKD2HR7WDqnvbURvDP-g3-AJWU5dtjTO2bc_5KnlfMQ_bf--QfbQ0hOhqP-jBRIE3-oJqC-2MK863f; H_PS_PSSID=34447_35104_31254_35054_35048_34584_34505_34532_34916_34578_34606_34815_26350_35074_34868_35114_34994; BD_HOME=1; BDRCVFR[feWj1Vr5u3D]=I67x6TjHwwYf0; delPer=0; BD_CK_SAM=1; PSINO=7; ZD_ENTRY=baidu; Hm_lpvt_aec699bb6442ba076c8981c6dc490771=1636816308; COOKIE_SESSION=491_0_4_1_17_15_1_0_3_3_3_2_37_0_0_0_1636869640_0_1636883230%7C9%230_0_1636883230%7C1; channel=baidusearch; baikeVisitId=890f41d6-a881-40f8-8e1f-d063c9b85e66; BA_HECTOR=8hal010h0l0ga5a1e81gp1mth0q; H_PS_645EC=cf7cvLOcfgwcDZQj%2FzhokEDASz7dOuCAyqXl4hITTSedZyHu31D5pYOUOI1y1qSioWZn; sug=3; sugstore=1; ORIGIN=2; bdime=0; BDSVRTM=0; WWW_ST=1636883639028"]
+      & param "wd" .~ [query <> " site:baike.baidu.com"]
+      & param "ie" .~ ["utf-8"]
+      & param "pn" .~ ["0"]
+      & param "cl" .~ ["3"]
+      & param "rn" .~ ["10"]

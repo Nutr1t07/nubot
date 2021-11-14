@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Util.Log ( logErr, logWT, logWT'C8, logWT'T, LogTag(..))where
+module Util.Log ( logErr, logWT, logWT'C8, logWT'T, logWT'BL, LogTag(..))where
 
 import Data.Time ( defaultTimeLocale, formatTime, getCurrentTime )
 import System.IO ( hFlush, stdout )
 import qualified Data.ByteString.Char8 as Char8
+import qualified Data.ByteString.Lazy as BL
 import Data.Text (Text)
 import qualified Data.Text as T
 import Prelude hiding (log)
@@ -34,6 +35,9 @@ logWT = log putStrLn id
 
 logWT'C8 :: LogTag -> Char8.ByteString -> IO ()
 logWT'C8 = log Char8.putStrLn Char8.pack
+
+logWT'BL :: LogTag -> BL.ByteString -> IO ()
+logWT'BL = log BL.putStrLn (BL.fromStrict . Char8.pack)
 
 logWT'T:: LogTag -> Text -> IO ()
 logWT'T = log T.putStrLn T.pack
