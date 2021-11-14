@@ -3,7 +3,7 @@
 module Data.Monads where
 import Control.Monad (liftM)
 
--- import Data.Bifunctor ( Bifunctor(first) )
+import Data.Bifunctor ( Bifunctor(first) )
 
 class (forall m. Monad m => Monad (t m)) => MonadTrans t where
   lift :: Monad m => m a -> t m a 
@@ -57,28 +57,28 @@ modErr f x = EitherT $ do
 -- 
 -- 
 -- 
--- -- ## ReaderT
--- 
--- ask :: Monad m => ReaderT r m r
--- ask = ReaderT pure
--- 
--- asks :: Monad m => (r -> a) -> ReaderT r m a
--- asks f = ReaderT (pure.f)
--- 
--- newtype ReaderT r m a = ReaderT {
---   runReaderT :: r -> m a
--- }
--- 
--- instance MonadTrans (ReaderT r) where
---   lift = ReaderT . pure
--- 
--- instance (Functor m) => Functor (ReaderT r m) where
---   fmap f (ReaderT x) = ReaderT (fmap f.x)
--- 
--- instance (Applicative m) => Applicative (ReaderT r m) where
---   pure x = ReaderT $ pure (pure x)
---   (ReaderT f) <*> (ReaderT x) = ReaderT (\r -> f r <*> x r)
--- 
--- instance (Monad m) => Monad (ReaderT r m) where
---   (ReaderT x) >>= f = ReaderT (\r -> x r >>= (`runReaderT` r) . f)
--- 
+-- ## ReaderT
+
+ask :: Monad m => ReaderT r m r
+ask = ReaderT pure
+
+asks :: Monad m => (r -> a) -> ReaderT r m a
+asks f = ReaderT (pure.f)
+
+newtype ReaderT r m a = ReaderT {
+  runReaderT :: r -> m a
+}
+
+instance MonadTrans (ReaderT r) where
+  lift = ReaderT . pure
+
+instance (Functor m) => Functor (ReaderT r m) where
+  fmap f (ReaderT x) = ReaderT (fmap f.x)
+
+instance (Applicative m) => Applicative (ReaderT r m) where
+  pure x = ReaderT $ pure (pure x)
+  (ReaderT f) <*> (ReaderT x) = ReaderT (\r -> f r <*> x r)
+
+instance (Monad m) => Monad (ReaderT r m) where
+  (ReaderT x) >>= f = ReaderT (\r -> x r >>= (`runReaderT` r) . f)
+

@@ -11,7 +11,7 @@ import Util.Config
 import Data.Maybe
 import Control.Monad
 import Type.Mirai.Update
-import AutoReply
+import AutoReply.Handler
 import Data.TaskQueue (emptyTaskQueue)
 import Data.User
 import Data.Mirai (initMsgLogDB)

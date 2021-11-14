@@ -23,6 +23,10 @@ isFromGroup (MUpdate MessageUpdate{..})
   | otherwise = False
 isFromGroup _ = False
 
+isMessage :: Update -> Bool
+isMessage (MUpdate _) = True
+isMessage _ = False
+
 isEvent :: Update -> Bool
 isEvent (EUpdate _) = True
 isEvent _ = False
@@ -234,8 +238,8 @@ fetchMsg msgId = do
     )
   if null r then pure Nothing else pure $ Just (head r)
 
-logMsg :: Update -> IO ()
-logMsg update = do
+storeMsg :: Update -> IO ()
+storeMsg update = do
   case mupdToStoreMsg update of
     Nothing -> pure ()
     Just msg -> withConnection dbPath

@@ -1,16 +1,16 @@
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE OverloadedStrings #-}
-module AutoReply where
+{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
+module AutoReply.MsgHandle.Private where
 
 import Data.Mirai
-import Network.Mirai
+import Network.Mirai 
 import Type.Mirai.Update
-import Control.Monad
+import Control.Monad ( when, void )
 import qualified Data.Text as T
 import Data.Text (Text)
 import Data.User
 import Data.TaskQueue (TaskQueue, addTask)
 import ReplyText
+    ( rndPickText, TextType(Goodbye, Hello, WhyCancel) )
 import Data.Char (isDigit)
 import Data.Maybe (fromMaybe, fromJust)
 import Data.List (intersperse)
@@ -25,91 +25,19 @@ import Module.ImageSearch (runSauceNAOSearch)
 import Util.Log (logWT'T, LogTag (Debug, Info), logWT, logErr)
 import Type.Mirai.Common (ChatType(Friend))
 import Network.Mail (sendUpdateToEmail)
-import Data.Mirai (logMsg)
-
-mainHandler :: Int -> TaskQueue -> UserGroup -> RepliedTable -> Update -> Connection -> IO ()
-mainHandler selfId tasks grp tb upd conn = do
-  logMsg upd
-  when (isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId) $ addTask tasks $
-    privMsgHandler conn grp upd tb
-  when (isAddFriendEvent upd) $ addFriendHandler conn grp upd
-  when (isFromGroup upd) $ grpMsgHandler conn upd
-
-addFriendHandler :: Connection -> UserGroup -> Update -> IO ()
-addFriendHandler conn grp upd@(EUpdate upde) = do
-  let userId' = fromJust $ getUserId upd
-  usr' <- fetchUser grp userId'
-  usr <- case usr' of
-            Just x -> pure x
-            Nothing -> createUser grp userId'
-  let resp = mkFriendEventResp upd 0
-  logWT Info ("new friend " <> show userId' <> " added") >> sendCommand "resp_newFriendRequestEvent" conn resp
-  reply "嗨，我当前不在线"
-  reply "您的好友请求已由机器人自动同意，发送『帮助』以查看此机器人的功能"
-  void $ replaceUser grp (setState Idle usr)
-  where reply text = sendMessage Friend conn (mkSendMsgT upd text)
-addFriendHandler _ _ _ = pure ()
-
-grpMsgHandler :: Connection -> Update -> IO ()
-grpMsgHandler conn upd@(MUpdate updm) = do
-  case () of
-      _ | msgTxtEqTo "sp" -> do
-          urls <- getImgUrls' upd
-          let imgUrl = case urls of
-                [] -> ""
-                (x:_)  -> x
-
-          logWT Info $ "running SauceNAO search: " <> show imgUrl
-          logWT Debug $ "got image urls: " <> show (getImgUrls upd)
-          rst <- runSauceNAOSearch imgUrl
-          case rst of
-            Right (url, txt, Nothing) -> replyPicQ txt url
-            Right (url, txt, Just more) -> replyPicQ txt url >> replyQ more
-            Left err -> replyQ err
-          
-        | msgTxtEqTo "ping" -> replyQ "1 packets transmitted, 1 received, 0% packet loss"
-        | otherwise -> pure ()
-  where
-    msgTxt = fromMaybe "" $ getPlainText upd
-
-    msgTxtEqTo = equalT msgTxt
-    -- msgTxtElem = elemT msgTxt
-
-    reply  text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgT upd text)
-    replyQ text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgTQ upd text)
-    replyPicQ text url = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgPQ upd text url)
-grpMsgHandler _ _ = pure ()
-
-privMsgHandler :: Connection -> UserGroup -> Update -> RepliedTable -> IO ()
-privMsgHandler conn grp upd@(MUpdate updm) tb = do
-  let userId' = sdr_id $ updm_sender updm
-  usr' <- fetchUser grp userId'
-  usr <- case usr' of
-            Just x -> pure x
-            Nothing -> createUser grp userId'
-  changedUsr <- stateHandler usr conn upd tb
-  _ <- replaceUser grp (incStage 1 changedUsr) -- stage increase by default
-  pure ()
-privMsgHandler _ _ _ _ = pure ()
+import AutoReply.Misc
 
 stateHandler :: User -> Connection -> Update -> RepliedTable -> IO User
 stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
   Greeting -> do
         hello <- rndPickText Hello
         let rmk = sdr_remark $ updm_sender updm
-        -- if sdr_nickname (updm_sender updm) == sdr_remark (updm_sender updm)
-          -- then reply "您好，我目前不使用QQ。"
-          -- else reply ("嗨，" <> fromMaybe "人类" rmk <> "，很抱歉，我目前不使用QQ。")
-        -- reply "您可以通过此QQ向我留言，如果有特殊或紧急事件，请直接获取我的联系方式。" >> threadDelay 3000000
-        -- reply "通常情况下，我建议您『留言』。您的留言将会被合并成一封电子邮件自动发送至我的邮箱，我将在看到后尽快回复您。" >> threadDelay 6000000
-        -- reply "如果您想要留言，请发送『留言』；如果您想要获取我的联系方式，请发送『联系方式』。或发送『帮助』以获取提示。"
         reply "嗨，我现在似乎并不在线呢。"
         reply "不过你可以跟这个机器人先玩一会儿！"
         reply "或者...发送『留言』来给我留言。"
         pure $ setState Idle usr
 
   Recording -> case stage usr of
-    -- recording msg
     0 -> case () of
       _ | msgTxtElem ["结束", "完毕", "完成"] -> do
             if null $ recordedMsg usr
@@ -239,10 +167,7 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
                       \"
                 pure usr
            | msgTxtEqTo "关于" -> do
-                -- replyOnce "「关于」\n\n\
-                --           \自动应答机器人，项目代号NuBot，使用函数式编程语言Haskell编写，托管于CloudCone洛杉矶服务器。\n\n\
-                --           \我想要让自己脱离社交软件与即时通讯软件的束缚，它们已经消耗我太多时间了。如果能得到正确的使用，这种留言的方式将能够些许提升交流的效率。\n\n\
-                --           \如果这样为您带来任何的不适，我感到十分抱歉。"
+                replyOnce "还没有写哦"
                 pure usr
            | msgTxtEqTo "ping" -> do
                 replyQ "pong!"
@@ -260,10 +185,9 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
     msgTxtEqTo = equalT msgTxt
     msgTxtElem = elemT msgTxt
 
-    replyWithText  conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgT upd text)
-    replyWithTextQ conn upd text = sendMessage (fromJust $ getChatType upd) conn (mkSendMsgTQ upd text)
-    reply  = replyWithText conn upd
-    replyQ = replyWithTextQ conn upd
+    reply' = sendMessage (fromJust $ getChatType upd) conn 
+    reply  txt = reply' (mkSendMsgT upd txt)
+    replyQ txt = reply' (mkSendMsgTQ upd txt)
     replyOnce  = replyOnce' reply
     replyOnceQ = replyOnce' replyQ
 
@@ -274,9 +198,6 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
          else f txt >> markReplied tb txt (userId usr)
 stateHandler usr _ _ _ = pure usr
 
-
-
-data NameError = TooLong | TooShort | ContainDigit
 
 -- util func
 setState :: State -> User -> User
@@ -293,47 +214,3 @@ rmvFlag  f usr = usr{flag = filter (/= f) (flag usr)}
 
 addFlag :: Flag -> User -> User
 addFlag  f usr = usr{flag = let fs = flag usr in if f `elem` fs then fs else f:fs}
-
-
--- trival func
-
-checkRemark txt
-  | T.length txt > 4 = Left TooLong
-  | T.length txt < 2 = Left TooShort
-  | T.any isDigit txt = Left ContainDigit
-  | otherwise = Right txt
-
-nameErrorReply TooLong = "看起来有点长...您确定要这样叫吗？"
-nameErrorReply TooShort = "似乎有些太短了，这就是您的名字吗？"
-nameErrorReply ContainDigit = "这个名字里含有数字，确定这是您的称呼吗？"
-
-equalT t target = target == trimT t
-elemT t targets =  trimT t `elem` targets
-
-trimT :: Text -> Text
-trimT txt = trimEnd $ trimHead txt
-  where
-    elemT c t = T.any (==c) t
-    trimEnd txt =
-      if txt /= T.empty && elemT (T.last txt) ignore
-        then trimHead $ T.init txt
-        else txt
-    trimHead txt =
-      if txt /= T.empty && elemT (T.head txt) ignore
-        then trimHead $ T.tail txt
-        else txt
-    ignore :: Text
-    ignore = " ,./?!:;'~`()-" <>
-               "，。、’；：～！？（）" <>
-               "的吧了呀也哪呢阿哈呗啊啦哩咧哇耶哉罢呐咯嘛噢呕哟呦"
-
-
-checkTrueOrFalse :: Text -> Maybe Bool
-checkTrueOrFalse txt' = check $ trimT txt'
- where
-   check txt
-     | txt `elem` trueWords  = Just True
-     | txt `elem` falseWords = Just False
-     | otherwise = Nothing
-   trueWords = [ "是", "嗯", "好", "行", "可以", "没错", "不错", "正确", "确定"]
-   falseWords = ["否", "非", "错", "错误"] <> fmap ("不"<>) trueWords

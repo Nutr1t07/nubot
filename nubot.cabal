@@ -25,7 +25,14 @@ source-repository head
 
 library
   exposed-modules:
-      AutoReply
+      AutoReply.EventHandle
+      AutoReply.EventHandle.AddFriend
+      AutoReply.HandleEnv
+      AutoReply.Handler
+      AutoReply.Misc
+      AutoReply.MsgHandle
+      AutoReply.MsgHandle.Group
+      AutoReply.MsgHandle.Private
       Data.Mirai
       Data.Monads
       Data.Queue

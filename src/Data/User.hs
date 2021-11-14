@@ -45,23 +45,30 @@ createUser grp userid' = addUser grp newUser
 
 addUser :: UserGroup -> User -> IO User
 addUser grp user = do
-  exist <- isJust <$> fetchUser grp (userId user)
+  exist <- isJust <$> fetchUser' grp (userId user)
   when exist $ logErr "adding user" "user already exist"
   unless exist $ modifyIORef grp (user:)
   pure user
 
 replaceUser :: UserGroup -> User -> IO User
 replaceUser grp user@User{userId = targetUserId} = do
-  exist <- isJust <$> fetchUser grp targetUserId
-  unless exist $ logErr "adding user" "user not exist"
+  exist <- isJust <$> fetchUser' grp targetUserId
+  unless exist $ logErr "replace user" "user not exist"
   when exist $ modifyIORef grp replace'
   pure user
   where
     replace' [] = []
     replace' (x:xs) = if userId x == targetUserId then user : xs else x : replace' xs
 
-fetchUser :: UserGroup -> Integer -> IO (Maybe User)
-fetchUser grp userid' = do
+fetchUser :: UserGroup -> Integer -> IO (User)
+fetchUser grp userId' = do
+    usr' <- fetchUser' grp userId'
+    case usr' of
+      Just x -> pure x
+      Nothing -> createUser grp userId'
+
+fetchUser' :: UserGroup -> Integer -> IO (Maybe User)
+fetchUser' grp userid' = do
   grp' <- readIORef grp
   pure $ findFirst grp' userid'
   where
@@ -70,6 +77,8 @@ fetchUser grp userid' = do
       if userId usr == targetId
         then Just usr 
         else findFirst usrs targetId
+
+
 
 data User = User {
     userId      :: Integer 
