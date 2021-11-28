@@ -5,8 +5,12 @@ import qualified Data.Text as T
 import           Data.Text      (Text)
 
 
+equalT :: Text -> Text -> Bool
 equalT t target = target == trimT t
-elemT t targets =  trimT t `elem` targets
+elemT :: Text -> [Text] -> Bool
+elemT t targets = trimT t `elem` targets
+beginWithT :: Text -> Text -> Bool
+beginWithT t target = target == T.take (T.length target) t
 
 trimT :: Text -> Text
 trimT txt = trimEnd $ trimHead txt

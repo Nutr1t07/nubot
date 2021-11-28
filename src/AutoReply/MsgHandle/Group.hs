@@ -1,15 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 module AutoReply.MsgHandle.Group where
 
-import Network.Mirai
+import Network.Mirai ( sendMessage )
 import Data.Mirai
-import Module.ImageSearch
-import Type.Mirai.Update
-import AutoReply.HandleEnv
-import Data.Monads
-import Util.Log
-import Data.Maybe
-import qualified Data.Text as T (empty)
+    ( getPlainText,
+      getImgUrls',
+      mkSendMsgTQ,
+      getChatType,
+      mkSendMsgT,
+      mkSendMsgPQ )
+import Module.ImageSearch ( runSauceNAOSearch )
+import AutoReply.HandleEnv ( HandleEnv(update, connection) )
+import Data.Monads ( ReaderT, MonadTrans(lift), asks )
+import Util.Log ( logWT, LogTag(Info) )
+import Data.Maybe ( fromMaybe, fromJust )
+import qualified Data.Text as T
+import AutoReply.Misc (trimT)
+import Module.WebSearch (runBaiduSearch)
 
 searchImageHdl :: ReaderT HandleEnv IO ()
 searchImageHdl = do
@@ -28,6 +35,18 @@ searchImageHdl = do
 
 pingHdl :: ReaderT HandleEnv IO ()
 pingHdl = replyQ "1 packets transmitted, 1 received, 0% packet loss"
+
+searchBaiduHdl :: T.Text -> ReaderT HandleEnv IO ()
+searchBaiduHdl cmd = do
+  upd <- asks update
+  let query = getQueryText $ fromMaybe "" (getPlainText upd)
+  baiduRst <- lift $ runBaiduSearch query
+  case baiduRst of
+    Just (link, title, abstract, searchLink) ->
+      reply $ title <> "\n\n" <> abstract <> "\n\n" <> link <> "\n\n" <> searchLink
+    Nothing -> pure ()
+  where
+    getQueryText txt = trimT $ T.drop (T.length cmd) txt
 
 reply' f = do
   upd <- asks update

@@ -2,12 +2,25 @@
 module AutoReply.MsgHandle.Private where
 
 import Data.Mirai
-import Network.Mirai 
+    ( getText,
+      getPlainText,
+      getMessageTime,
+      mkSendMsgTQ,
+      getChatType,
+      mkSendMsgT )
+import Network.Mirai ( Connection, sendMessage ) 
 import Type.Mirai.Update
+    ( Sender(sdr_remark), MessageUpdate(updm_sender), Update(MUpdate) )
 import Control.Monad ( when, void )
 import qualified Data.Text as T
 import Data.Text (Text)
 import Data.User
+    ( RepliedTable,
+      State(..),
+      Flag(Editing),
+      User(userId, recordedMsg, state, stage, flag),
+      markReplied,
+      isReplied )
 import Data.TaskQueue (TaskQueue, addTask)
 import ReplyText
     ( rndPickText, TextType(Goodbye, Hello, WhyCancel) )
@@ -20,12 +33,11 @@ import Data.Text.Read (decimal)
 import Data.Either (fromRight)
 import Data.Time (getCurrentTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime, utcTimeToPOSIXSeconds)
-import Module.WebSearch
-import Module.ImageSearch
+import Module.WebSearch ( runBaiduSearch, runBaikeSearch )
 import Util.Log (logWT'T, LogTag (Debug, Info), logWT, logErr)
 import Type.Mirai.Common (ChatType(Friend))
 import Network.Mail (sendUpdateToEmail)
-import AutoReply.Misc
+import AutoReply.Misc ( equalT, elemT, trimT )
 
 stateHandler :: User -> Connection -> Update -> RepliedTable -> IO User
 stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
@@ -34,7 +46,7 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
         let rmk = sdr_remark $ updm_sender updm
         reply "嗨，我现在似乎并不在线呢。"
         reply "不过你可以跟这个机器人先玩一会儿！"
-        reply "或者...发送『留言』来给我留言。"
+        reply "发送『帮助』以查看这个机器人的功能。或者...发送『留言』来给我留言。"
         pure $ setState Idle usr
 
   Recording -> case stage usr of
@@ -140,7 +152,6 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
           replyQ "已退出搜索模式。"
           pure (setState Idle usr)
       | otherwise ->  do
-          logWT'T Info $ "running search: " <> msgTxt
           baikeRst <- runBaikeSearch msgTxt
           case baikeRst of
             (Just txt, Just url) -> reply $ "[百度百科]\n\n" <> txt <> "\n\n" <> url
@@ -148,7 +159,9 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
             (Nothing , Just url) -> reply $ "[百度百科]\n\n查询到结果，但没有摘要，请访问该页面以查看结果\n\n" <> url
           baiduRst <- runBaiduSearch msgTxt
           case baiduRst of
-            (link, title, abstract) -> reply $ "[百度]\n\n" <> title <> "\n\n" <> abstract <> "\n\n" <> link
+            Just (link, title, abstract, searchLink) ->
+              reply $ "[百度]\n\n" <> title <> "\n\n" <> abstract <> "\n\n" <> link <> "\n\n" <> searchLink
+            Nothing -> pure ()
           pure usr
 
   Idle -> case () of
@@ -165,7 +178,7 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
                       \『联系方式』\n\
                       \    获取我的联系方式。请注意，当您获取我的联系方式时，我将收到一条通知。\n\n\
                       \『搜索』(待完善)\n\
-                      \    这是一项试验性功能，您可以通过我获取简单的摘要信息。\n\n\
+                      \    这是一项试验性功能，您可以通过此机器人获取简单的摘要信息。\n\n\
                       \『关于』\n\
                       \    获取此项目的一些说明。\
                       \"
@@ -177,7 +190,7 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
                 replyQ "pong!"
                 pure usr
            | msgTxtEqTo "联系方式" -> do
-                replyOnce "这个功能暂时关闭，但是您的请求已经上报；我将多加关注您的信息。"
+                replyOnce "这个功能暂时关闭。您的行为已经上报；我将多加关注您的信息。"
                 replyOnce "您也可以直接发送邮件至我的邮箱"
                 reply "ne1s07@outlook.com"
                 pure usr

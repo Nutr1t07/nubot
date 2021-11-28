@@ -2,16 +2,18 @@
 module AutoReply.MsgHandle where
   
 import Data.TaskQueue (TaskQueue, addTask)
-import Data.User
-import Network.Mirai
+import Data.User ( replaceUser, fetchUser )
 import Type.Mirai.Update
-import AutoReply.MsgHandle.Private
+    ( Sender(sdr_id), MessageUpdate(updm_sender), Update(MUpdate) )
+import AutoReply.MsgHandle.Private ( stateHandler, incStage )
 import AutoReply.MsgHandle.Group
-import AutoReply.Misc
+    ( searchImageHdl, pingHdl, searchBaiduHdl )
+import AutoReply.Misc ( equalT, beginWithT )
 import AutoReply.HandleEnv
-import Data.Monads
-import Data.Mirai
-import Data.Maybe
+    ( HandleEnv(connection, replyTable, userGroup, update) )
+import Data.Monads ( ReaderT, MonadTrans(lift), ask, asks )
+import Data.Mirai ( getPlainText, isMessage )
+import Data.Maybe ( fromMaybe )
 
 guard' a action = if a then action else pure ()
 
@@ -30,8 +32,10 @@ _grpMsgHandler :: ReaderT HandleEnv IO ()
 _grpMsgHandler = do
   upd <- asks update
   let msgTxt = fromMaybe "" $ getPlainText upd
-      msgTxtEqTo = equalT msgTxt
+      equal' = equalT msgTxt
+      begin' = beginWithT msgTxt
   guard' (isMessage upd) $ case () of
-      _ | msgTxtEqTo "sp" -> searchImageHdl
-        | msgTxtEqTo "ping" -> pingHdl
+      _ | equal' "sp"     -> searchImageHdl
+        | equal' "ping"   -> pingHdl
+        | begin' "baidu'" -> searchBaiduHdl "baidu'"
         | otherwise -> pure ()

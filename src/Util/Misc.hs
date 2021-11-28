@@ -8,7 +8,16 @@ import qualified Data.List                     as List
 import           Data.String                    ( IsString )
 import qualified Data.Text                     as Text
 import qualified Control.Arrow                 as Arrow (first)
-import Data.Tuple (swap)
+import qualified Data.Tuple                    as Tup (swap)
+import qualified Network.URI                   as URI (
+                                                escapeURIString
+                                              , isUnescapedInURI )
+
+encodeURI :: String -> String
+encodeURI = URI.escapeURIString predi
+  where
+    predi '%' = True
+    predi x = URI.isUnescapedInURI x
 
 checkEmpty :: (Monoid a, Eq a) => a -> Maybe a
 checkEmpty txt = if txt == mempty then Nothing else Just txt
@@ -49,6 +58,6 @@ breakOn needle [] = ([], [])
 breakOn needle (x:xs) = Arrow.first (x:) $ breakOn needle xs
 
 breakOnEnd :: Eq a => [a] -> [a] -> ([a], [a])
-breakOnEnd needle haystack = both reverse $ swap $ breakOn (reverse needle) (reverse haystack)
+breakOnEnd needle haystack = both reverse $ Tup.swap $ breakOn (reverse needle) (reverse haystack)
   where 
     both f (x,y) = (f x, f y)
