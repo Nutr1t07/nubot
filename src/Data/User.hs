@@ -60,7 +60,7 @@ replaceUser grp user@User{userId = targetUserId} = do
     replace' [] = []
     replace' (x:xs) = if userId x == targetUserId then user : xs else x : replace' xs
 
-fetchUser :: UserGroup -> Integer -> IO (User)
+fetchUser :: UserGroup -> Integer -> IO User
 fetchUser grp userId' = do
     usr' <- fetchUser' grp userId'
     case usr' of

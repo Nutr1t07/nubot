@@ -46,6 +46,16 @@ mkFriendEventResp upd@(EUpdate EventUpdate{..}) op =
     else Nothing
 mkFriendEventResp _ _ = Nothing
 
+mkGroupEventResp :: Update -> Int -> Maybe RequestContent
+mkGroupEventResp upd@(EUpdate EventUpdate{..}) op =
+  if isAddFriendEvent upd
+    then Just $ REvent $ Event {ev_eventId = fromJust upde_eventId
+                              , ev_fromId  = fromJust upde_fromId
+                              , ev_groupId = upde_groupId
+                              , ev_operate = op
+                              , ev_message = "已处理"}
+    else Nothing
+mkGroupEventResp _ _ = Nothing
 
 mkSendMsgPQ :: Update -> Text -> Text -> Maybe RequestContent
 mkSendMsgPQ upd@(MUpdate MessageUpdate{..}) txt url = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> mkSendMsgP upd txt url
@@ -63,9 +73,14 @@ mkSendMsgT upd@(MUpdate MessageUpdate{..}) txt =
                   Just Friend -> Just $ SendMsg (getUserId upd) Nothing Nothing []
                   Nothing -> Nothing in
   (\x -> RSendMsg $ x {sm_messageChain = [mkTextMessageChain txt]}) <$> initMsg
-mkSendMsgT upd@(EUpdate EventUpdate{..}) txt = case getUserId upd of
-  Just usrId' -> Just $ RSendMsg $ SendMsg (Just usrId') (getGroupId upd) Nothing [mkTextMessageChain txt]
-  Nothing -> Nothing
+mkSendMsgT upd@(EUpdate EventUpdate{..}) txt 
+ | upde_type == "BotInvitedJoinGroupRequestEvent" =
+                  Just $ RSendMsg $ SendMsg Nothing (getGroupId upd) Nothing [mkTextMessageChain txt]
+ | upde_type == "NewFriendRequestEvent" =
+    case getUserId upd of
+      Just usrId' -> Just $ RSendMsg $ SendMsg (Just usrId') (getGroupId upd) Nothing [mkTextMessageChain txt]
+      Nothing -> Nothing
+ | otherwise = Nothing
 mkSendMsgT _ _ = Nothing
 
 mkTextMessageChain :: Text -> ChainMessage
@@ -130,7 +145,7 @@ getImgUrls' (MUpdate MessageUpdate{..}) = do
 getImgUrls' _ = pure []
 
 getImgUrls :: Update -> Maybe [Text]
-getImgUrls (MUpdate MessageUpdate{..}) = Just $ directUrls
+getImgUrls (MUpdate MessageUpdate{..}) = Just directUrls
   where
     directUrls    = getUrls updm_messageChain
     getUrls chain = map (fromJust . cm_url) $ filter (\x -> cm_type x == "Image") chain

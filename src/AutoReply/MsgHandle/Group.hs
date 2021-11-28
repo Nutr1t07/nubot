@@ -15,7 +15,7 @@ import Data.Monads ( ReaderT, MonadTrans(lift), asks )
 import Util.Log ( logWT, LogTag(Info) )
 import Data.Maybe ( fromMaybe, fromJust )
 import qualified Data.Text as T
-import AutoReply.Misc (trimT)
+import AutoReply.Misc (trimT, trimT')
 import Module.WebSearch (runBaiduSearch)
 
 searchImageHdl :: ReaderT HandleEnv IO ()
@@ -46,7 +46,7 @@ searchBaiduHdl cmd = do
       reply $ title <> "\n\n" <> abstract <> "\n\n" <> link <> "\n\n" <> searchLink
     Nothing -> pure ()
   where
-    getQueryText txt = trimT $ T.drop (T.length cmd) txt
+    getQueryText txt = trimT' " \n" $ T.drop (T.length cmd) txt
 
 reply' f = do
   upd <- asks update

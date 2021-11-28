@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 module Util.Misc where
 
 import qualified Data.ByteString               as BS
@@ -12,6 +13,9 @@ import qualified Data.Tuple                    as Tup (swap)
 import qualified Network.URI                   as URI (
                                                 escapeURIString
                                               , isUnescapedInURI )
+                                              
+showT :: forall a. Show a => a -> Text.Text
+showT = Text.pack . show
 
 encodeURI :: String -> String
 encodeURI = URI.escapeURIString predi

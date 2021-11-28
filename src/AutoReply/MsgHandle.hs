@@ -14,13 +14,17 @@ import AutoReply.HandleEnv
 import Data.Monads ( ReaderT, MonadTrans(lift), ask, asks )
 import Data.Mirai ( getPlainText, isMessage )
 import Data.Maybe ( fromMaybe )
+import Util.Log (logWT, LogTag (Info), logWT'T)
 
+guard' :: Applicative f => Bool -> f () -> f ()
 guard' a action = if a then action else pure ()
 
 _privMsgHandler :: ReaderT HandleEnv IO ()
 _privMsgHandler = do
   env <- ask
   upd <- asks update
+  lift $ logWT'T Info ("[_privMsgHandler] cmd received: " 
+            <> fromMaybe "" (getPlainText upd))
   lift $ guard' (isMessage upd) $ do
     let (MUpdate updm) = upd
     usr <- fetchUser (userGroup env) (sdr_id $ updm_sender updm)
@@ -34,8 +38,10 @@ _grpMsgHandler = do
   let msgTxt = fromMaybe "" $ getPlainText upd
       equal' = equalT msgTxt
       begin' = beginWithT msgTxt
+  lift $ logWT'T Info ("[_grpMsgHandler] cmd received: " <> msgTxt)
   guard' (isMessage upd) $ case () of
       _ | equal' "sp"     -> searchImageHdl
         | equal' "ping"   -> pingHdl
         | begin' "baidu'" -> searchBaiduHdl "baidu'"
+        | begin' "baidu`" -> searchBaiduHdl "baidu`"
         | otherwise -> pure ()

@@ -7,28 +7,38 @@ import           Data.Text      (Text)
 
 equalT :: Text -> Text -> Bool
 equalT t target = target == trimT t
-elemT :: Text -> [Text] -> Bool
-elemT t targets = trimT t `elem` targets
+
+elemTs :: Text -> [Text] -> Bool
+elemTs t targets = trimT t `elem` targets
+
 beginWithT :: Text -> Text -> Bool
 beginWithT t target = target == T.take (T.length target) t
 
+trimT' :: Text -> Text -> Text
+trimT' ignore = trimEnd <*> trimHead ignore
+    
+elemT :: Char -> Text -> Bool
+elemT c = T.any (==c)
+
 trimT :: Text -> Text
-trimT txt = trimEnd $ trimHead txt
+trimT = trimT' ignore
   where
-    elemT c t = T.any (==c) t
-    trimEnd txt =
-      if txt /= T.empty && elemT (T.last txt) ignore
-        then trimHead $ T.init txt
-        else txt
-    trimHead txt =
-      if txt /= T.empty && elemT (T.head txt) ignore
-        then trimHead $ T.tail txt
-        else txt
     ignore :: Text
     ignore = " ,./?!:;'~`()-" <>
                "，。、’；：～！？（）" <>
                "的吧了呀也哪呢阿哈呗啊啦哩咧哇耶哉罢呐咯嘛噢呕哟呦"
 
+trimEnd :: Text -> Text -> Text
+trimEnd ignore txt =
+  if txt /= T.empty && elemT (T.last txt) ignore
+    then trimHead ignore $ T.init txt
+    else txt
+
+trimHead :: Text -> Text -> Text
+trimHead ignore txt =
+  if txt /= T.empty && elemT (T.head txt) ignore
+    then trimHead ignore $ T.tail txt
+    else txt
 
 checkTrueOrFalse :: Text -> Maybe Bool
 checkTrueOrFalse txt' = check $ trimT txt'

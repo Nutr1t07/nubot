@@ -13,13 +13,14 @@ import Data.Maybe
 import Control.Monad
 
 mainHandler :: Int -> TaskQueue -> UserGroup -> RepliedTable -> Update -> Connection -> IO ()
-mainHandler selfId taskQueue userGrp replyTable upd conn = (flip runReaderT) env $ do
+mainHandler selfId taskQueue userGrp replyTable upd conn = flip runReaderT env $ do
   lift $ storeMsg upd
   when (isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId) $
-    lift $ addTask taskQueue $
-      (`runReaderT` env) privMsgHandler
-  when (isAddFriendEvent upd) $ addFriendHandler 
-  when (isFromGroup upd) $ grpMsgHandler
+    lift $ addTask taskQueue $ (`runReaderT` env) privMsgHandler
+  when (isAddFriendEvent upd)
+    addFriendHandler
+  when (isFromGroup upd)
+    grpMsgHandler
   where
     env = HandleEnv conn upd taskQueue replyTable userGrp selfId
 
