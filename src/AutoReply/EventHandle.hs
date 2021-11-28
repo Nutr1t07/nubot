@@ -3,18 +3,26 @@ module AutoReply.EventHandle where
 
 import Data.TaskQueue (TaskQueue, addTask)
 import Data.User
-import Network.Mirai
+    ( fetchUser, replaceUser, State(Idle), User(userId) )
+import Network.Mirai ( sendCommand, sendMessage )
 import Type.Mirai.Update
-import AutoReply.MsgHandle.Private
-import AutoReply.MsgHandle.Group
+    ( EventUpdate(upde_fromId), Update(EUpdate) )
+import AutoReply.MsgHandle.Private ( setState )
 import AutoReply.HandleEnv
-import Data.Monads
-import Control.Monad
+    ( HandleEnv(userGroup, update, connection) )
+import Data.Monads ( ask, asks, MonadTrans(lift), ReaderT )
+import Control.Monad ( void )
 import Data.Mirai
-import Data.Maybe
-import Type.Mirai.Common
-import Util.Log
-import Util.Misc
+    ( getGroupId,
+      getUserId,
+      isEvent,
+      mkFriendEventResp,
+      mkSendMsgT,
+      mkGroupEventResp )
+import Data.Maybe ( fromJust )
+import Type.Mirai.Common ( ChatType(Group, Friend) )
+import Util.Log ( logWT, LogTag(Info) )
+import Util.Misc ( showT )
 
 guard' :: Applicative f => Bool -> f () -> f ()
 guard' a action = if a then action else pure ()

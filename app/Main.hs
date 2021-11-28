@@ -15,9 +15,11 @@ import AutoReply.Handler
 import Data.TaskQueue (emptyTaskQueue)
 import Data.User
 import Data.Mirai (initMsgLogDB)
+import GHC.IO.Encoding
 
 main :: IO ()
 main = do
+  setLocaleEncoding utf8
   initMsgLogDB
   cfg <- readConfig
   when (isJust cfg) $ do
