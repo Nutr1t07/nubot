@@ -6,28 +6,27 @@ import Data.Text (Text)
 import Data.Aeson
     ( FromJSON(parseJSON), eitherDecode, ToJSON(toJSON) )
 import Network.Wreq as Wreq
-import Control.Lens
+    ( getWith, defaults, param, responseBody )
+import Control.Lens ( (&), (^.), (.~) )
 import qualified Data.Text as T
 import Util.Log (logWT, LogTag (Error))
-import Util.Json
-import GHC.Generics
-import Util.Time (getDateStr)
-import Text.Printf
-
+import Util.Json ( dropParseJSON, dropToJSON )
+import GHC.Generics ( Generic )
+import Util.Time (getDate)
 
 
 getHolidayText :: IO (Maybe Text)
 getHolidayText = do
-  date <- getDateStr
+  date <- getDate "%Y-%m-%d"
   hld' <- getHoliday date
-  
+  today <- getDate "%m-%d %R"
   let textIt hld = case hld_name hld of
-                      "" -> Nothing 
+                      "" -> Nothing
                       _  -> do
-                        let number = if hld_now hld /= 0 then " 第" <> digitToCN (hld_now hld) <> "天" else ""
+                        let number = if hld_now hld /= 0 then "的第" <> digitToCN (hld_now hld) <> "天" else ""
                         let name = if hld_enname hld /= "" then hld_name hld <> " (" <> hld_enname hld <> ")" else ""
                         let tip  = if hld_now hld == 0 then hld_tip hld else ""
-                        Just $ "今天是 " <> hld_name hld <> number <> " 。" <> tip
+                        Just $ "今天是" <> name <> number <> "。" <> tip
   pure $ textIt =<< hld'
   where
     digitToCN 0 = "零"

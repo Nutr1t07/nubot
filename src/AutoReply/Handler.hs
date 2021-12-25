@@ -1,16 +1,23 @@
 module AutoReply.Handler where
   
 import Data.TaskQueue (TaskQueue, addTask)
-import Data.User
-import Network.Mirai
-import Type.Mirai.Update
-import AutoReply.MsgHandle
+import Data.User ( RepliedTable, UserGroup )
+import Network.Mirai ( Connection )
+import Type.Mirai.Update ( Update )
+import AutoReply.MsgHandle ( _grpMsgHandler, _privMsgHandler )
 import AutoReply.EventHandle
+    ( _addFriendHandler, _joinGroupHandler, _memberJoinHandler )
 import AutoReply.HandleEnv (HandleEnv(HandleEnv))
-import Data.Monads
+import Data.Monads ( MonadTrans(lift), ReaderT(runReaderT) )
 import Data.Mirai
-import Data.Maybe
-import Control.Monad
+    ( getUserId,
+      isAddFriendEvent,
+      isFromGroup,
+      isFromUser,
+      isInvitedToGroupEvent,
+      isNewMemberEvent,
+      storeMsg )
+import Data.Maybe ( fromJust )
 import Data.Schedule (Schedule)
 
 mainHandler :: Int -> TaskQueue -> UserGroup -> Schedule -> RepliedTable -> Update -> Connection -> IO ()

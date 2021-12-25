@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Util.Log ( logErr, logWT, logWT'C8, logWT'T, logWT'BL, LogTag(..))where
 
-import Data.Time ( defaultTimeLocale, formatTime, getCurrentTime )
+import Data.Time ( defaultTimeLocale, formatTime, getZonedTime )
 import System.IO ( hFlush, stdout )
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy.Char8 as Char8L
@@ -28,7 +28,7 @@ log printFunc packFunc tag msg
       hFlush stdout
   where
     mkInfo logTag = do
-      t <- formatTime defaultTimeLocale "%Y/%m/%d %H:%M" <$> getCurrentTime
+      t <- formatTime defaultTimeLocale "%Y/%m/%d %H:%M" <$> getZonedTime
       pure $ concat ["[", t, "] ", "[", show logTag, "] "]
 
 -- Log with tag

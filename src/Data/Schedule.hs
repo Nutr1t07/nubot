@@ -2,22 +2,25 @@
 module Data.Schedule where
 
 import qualified Data.ByteString.Lazy as BL
-import Codec.Serialise
-import GHC.Generics
+import Codec.Serialise ( Serialise, deserialiseOrFail, serialise )
+import GHC.Generics ( Generic )
 import qualified Data.ByteString as BS
-import Control.Exception
-import Util.Log
-import Data.Either
+import Control.Exception ( try, SomeException )
+import Util.Log ( logErr )
+import Data.Either ( fromRight )
 import Module.Holiday (getHolidayText)
 import Data.Text (Text)
 import Control.Concurrent (threadDelay)
-import Control.Monad
+import Control.Monad ( forever, void )
 import Data.Mirai (mkSendMsgT)
-import Network.Mirai
+import Network.Mirai ( sendMessage, Connection )
 import qualified Type.Mirai.Common as CT ( ChatType(Group, Friend) )
 import Data.Foldable (traverse_)
 import Data.IORef (readIORef, IORef, newIORef, writeIORef)
 import qualified Data.Text as T
+import qualified Data.Bifunctor
+import Data.Bifunctor (second)
+import Data.Time (getZonedTime, ZonedTime (zonedTimeToLocalTime), LocalTime (localTimeOfDay), TimeOfDay (todHour))
 
 -- should be functions that has Maybe Int -> Maybe Int -> IO () as type
 type FuncName = String
@@ -37,33 +40,54 @@ sendTarget conn txt (User uid)  = sendMessage CT.Friend conn (Just (mkSendMsgT (
 sendTarget conn txt (Group gid) = sendMessage CT.Group conn (Just (mkSendMsgT Nothing (Just gid) txt))
 
 runSchedule :: Schedule -> Connection -> IO a
-runSchedule scheRef conn = do
-  (ScheduleTable sche) <- readIORef scheRef
-  forever . void
-    $ ((try $ do
+runSchedule scheRef conn = forever . void $ ((try $ do
+          currHour <- todHour .localTimeOfDay . zonedTimeToLocalTime <$> getZonedTime
+          let sleepTo10 = if currHour /= 10 then threadDelay (oneMin * 60 * 24) >> sleepTo10 else pure ()
+          sleepTo10
           let singleRun (funcName, targets) = do
                 rst <- getFunc funcName
                 case rst of
                   Just txt -> sendTarget conn txt `traverse_` (targets:: [Target])
                   _ -> pure ()
+          (ScheduleTable sche) <- readIORef scheRef
           traverse_ singleRun sche
           threadDelay (oneMin * 60 * 24)
-       ) :: IO (Either SomeException ())
-      )
+          
+       ) :: IO (Either SomeException ()))
 
 getFunc :: String -> IO (Maybe Text)
 getFunc funcName = case lookup funcName scheduleFuncMap of
   Just f -> f
   _ -> pure Nothing
 
+rmSchedule :: Target -> String -> Schedule -> IO (Either String ())
+rmSchedule t funcName scheRef = do
+  case lookup funcName scheduleFuncMap of
+    Nothing -> pure (Left "not found.")
+    Just x -> do
+      (ScheduleTable st) <- readIORef scheRef
+      case removeIt (False, st) of
+        (False, rst) -> pure $ Left "this target is NOT in schedule"
+        (True, rst) -> Right <$> writeIORef scheRef (ScheduleTable rst)
+
+  where
+    removeIt (b,  []) = (b, [])
+    removeIt (b, x@(fn, targets):xs) = if t `elem` targets
+                                          then (True, (fn, filter (/= t) targets):xs)
+                                          else
+                                            case removeIt (b, xs) of
+                                              (True, xxx) -> (True, x:xxx)
+                                              (False, xxx) -> second (x :) $ removeIt (b, xxx)
+
+
 addSchedule :: Target -> String -> Schedule -> IO (Either String ())
 addSchedule t funcName scheRef = do
   case lookup funcName scheduleFuncMap of
     Nothing -> pure (Left "no corresponding schedule func found.")
-    Just x -> do
+    Just _ -> do
       (ScheduleTable st) <- readIORef scheRef
       case replaceIt st of
-        Nothing -> pure $ Left "this target is already in schedule"
+        Nothing -> pure $ Left "this target is ALREADY in schedule"
         Just x -> Right <$> writeIORef scheRef (ScheduleTable x)
 
   where

@@ -7,7 +7,7 @@ import Type.Mirai.Update
     ( Sender(sdr_id), MessageUpdate(updm_sender), Update(MUpdate) )
 import AutoReply.MsgHandle.Private ( stateHandler, incStage )
 import AutoReply.MsgHandle.Group
-    ( searchImageHdl, pingHdl, searchBaiduHdl, addScheduleHdl, getScheduleHdl )
+    ( searchImageHdl, pingHdl, searchBaiduHdl, addScheduleHdl, getScheduleHdl, rmScheduleHdl )
 import AutoReply.Misc ( equalT, beginWithT )
 import AutoReply.HandleEnv
     ( HandleEnv(connection, replyTable, userGroup, update) )
@@ -16,6 +16,7 @@ import Data.Mirai ( getPlainText, isMessage )
 import Data.Maybe ( fromMaybe )
 import Util.Log (logWT, LogTag (Info), logWT'T)
 
+guard' :: Applicative f => Bool -> f () -> f ()
 guard' a action = if a then action else pure ()
 
 _privMsgHandler :: ReaderT HandleEnv IO ()
@@ -28,7 +29,7 @@ _privMsgHandler = do
     let (MUpdate updm) = upd
     usr <- fetchUser (userGroup env) (sdr_id $ updm_sender updm)
     changedUsr <- stateHandler usr (connection env) upd (replyTable env)
-    _ <- replaceUser (userGroup env) (incStage 1 changedUsr) -- stage increase by default
+    _ <- replaceUser (userGroup env) (incStage 1 changedUsr)
     pure ()
 
 _grpMsgHandler :: ReaderT HandleEnv IO ()
@@ -43,4 +44,5 @@ _grpMsgHandler = do
         | begin' "baidu'" -> searchBaiduHdl
         | begin' "addSchedule'" -> addScheduleHdl
         | begin' "getSchedule'" -> getScheduleHdl
+        | begin' "rmSchedule'" -> rmScheduleHdl
         | otherwise -> pure ()

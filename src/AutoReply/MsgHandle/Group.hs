@@ -19,7 +19,7 @@ import AutoReply.Misc (trimT, trimT')
 import Module.WebSearch (runBaiduSearch)
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import Util.Misc (showT)
-import Data.Schedule (scheduleFuncMap, Target (Group), addSchedule, saveSchedule)
+import Data.Schedule (scheduleFuncMap, Target (Group), addSchedule, saveSchedule, rmSchedule, Schedule)
 import Data.IORef (readIORef)
 
 searchImageHdl :: ReaderT HandleEnv IO ()
@@ -61,18 +61,19 @@ searchBaiduHdl = do
   where
     getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
 
-addScheduleHdl :: ReaderT HandleEnv IO ()
-addScheduleHdl = do
+
+
+_addOrRemoveSchedule :: (Target -> String -> Schedule -> IO (Either String ()))
+                            -> ReaderT HandleEnv IO ()
+_addOrRemoveSchedule f = do
   upd <- asks update
   let msgTxt = fromMaybe "" (getPlainText upd)
       funcName = getText msgTxt
   case getGroupId upd of
     Nothing -> replyQ "unable to fetch group id"
-    Just gid -> case lookup (T.unpack funcName) scheduleFuncMap of
-          Nothing -> replyQ "no corresponding schedule plan found."
-          Just x -> do
+    Just gid -> do
             schRef <- asks schedule
-            rst <- lift $ addSchedule (Group gid) (T.unpack funcName) schRef
+            rst <- lift $ f (Group gid) (T.unpack funcName) schRef
             case rst of
               Right () -> replyQ "success" >> lift (saveSchedule schRef)
               Left err -> replyQ $ T.pack err
@@ -80,11 +81,20 @@ addScheduleHdl = do
   where
     getText txt = trimT' " \n" $ T.dropWhile (== ' ') $ T.dropWhile (/= ' ') txt
 
+addScheduleHdl :: ReaderT HandleEnv IO ()
+addScheduleHdl = _addOrRemoveSchedule addSchedule
+
+rmScheduleHdl :: ReaderT HandleEnv IO ()
+rmScheduleHdl = _addOrRemoveSchedule rmSchedule
+
 getScheduleHdl :: ReaderT HandleEnv IO ()
 getScheduleHdl = do
   schRef <- asks schedule
   sche <- lift $ readIORef schRef
   reply (showT sche)
+
+
+
 
 reply' f = do
   upd <- asks update
