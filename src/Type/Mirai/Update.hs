@@ -47,6 +47,12 @@ data EventUpdate = EventUpdate {
   , upde_eventId      :: Maybe Integer
   , upde_fromId       :: Maybe Integer
   , upde_groupId      :: Maybe Integer
+
+  -- MemberJoinRequestEvent
+  , upde_nick         :: Maybe Text
+  , upde_message      :: Maybe Text
+
+
 } deriving (Show, Generic)
 instance Serialise EventUpdate
 instance FromJSON EventUpdate where

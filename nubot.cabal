@@ -26,7 +26,6 @@ source-repository head
 library
   exposed-modules:
       AutoReply.EventHandle
-      AutoReply.EventHandle.AddFriend
       AutoReply.HandleEnv
       AutoReply.Handler
       AutoReply.Misc
@@ -36,8 +35,10 @@ library
       Data.Mirai
       Data.Monads
       Data.Queue
+      Data.Schedule
       Data.TaskQueue
       Data.User
+      Module.Holiday
       Module.ImageSearch
       Module.WebSearch
       Network.Mail
@@ -50,6 +51,7 @@ library
       Util.Json
       Util.Log
       Util.Misc
+      Util.Time
   other-modules:
       Paths_nubot
   hs-source-dirs:
@@ -75,6 +77,8 @@ library
 
 executable nubot-exe
   main-is: Main.hs
+  other-modules:
+      Paths_nubot
   hs-source-dirs:
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -101,6 +105,8 @@ executable nubot-exe
 test-suite nubot-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
+  other-modules:
+      Paths_nubot
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N

@@ -5,6 +5,7 @@ import Data.TaskQueue (TaskQueue)
 import Data.User
 import Network.Mirai
 import Type.Mirai.Update
+import Data.Schedule (Schedule)
 
 data HandleEnv = HandleEnv {
     connection :: Connection
@@ -12,5 +13,6 @@ data HandleEnv = HandleEnv {
   , taskQueue :: TaskQueue
   , replyTable :: RepliedTable
   , userGroup :: UserGroup
+  , schedule :: Schedule
   , selfId :: Int
 }

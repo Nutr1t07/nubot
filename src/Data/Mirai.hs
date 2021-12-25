@@ -35,6 +35,14 @@ isAddFriendEvent :: Update -> Bool
 isAddFriendEvent (EUpdate EventUpdate{upde_type = t}) = t == "NewFriendRequestEvent"
 isAddFriendEvent _ = False
 
+isNewMemberEvent :: Update -> Bool
+isNewMemberEvent (EUpdate EventUpdate{upde_type = t}) = t == "MemberJoinRequestEvent"
+isNewMemberEvent _ = False
+
+isInvitedToGroupEvent :: Update -> Bool
+isInvitedToGroupEvent (EUpdate EventUpdate{upde_type = t}) = t == "BotInvitedJoinGroupRequestEvent"
+isInvitedToGroupEvent _ = False
+
 mkFriendEventResp :: Update -> Int -> Maybe RequestContent
 mkFriendEventResp upd@(EUpdate EventUpdate{..}) op =
   if isAddFriendEvent upd
@@ -57,38 +65,43 @@ mkGroupEventResp upd@(EUpdate EventUpdate{..}) op =
     else Nothing
 mkGroupEventResp _ _ = Nothing
 
-mkSendMsgPQ :: Update -> Text -> Text -> Maybe RequestContent
-mkSendMsgPQ upd@(MUpdate MessageUpdate{..}) txt url = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> mkSendMsgP upd txt url
-mkSendMsgPQ _ _ _ = Nothing
+mkSendMsgT :: Maybe Integer -> Maybe Integer -> Text -> RequestContent
+mkSendMsgT gid uid txt = RSendMsg $ SendMsg gid uid Nothing [mkTextMessageChain txt]
 
-mkSendMsgP :: Update -> Text -> Text -> Maybe RequestContent
-mkSendMsgP upd txt url = (\(RSendMsg x) -> RSendMsg x{sm_messageChain = picChain : sm_messageChain x }) <$> mkSendMsgT upd txt
+transUpd2SendMsgPQ :: Update -> Text -> Text -> Maybe RequestContent
+transUpd2SendMsgPQ upd@(MUpdate MessageUpdate{..}) txt url = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> transUpd2SendMsgP upd txt url
+transUpd2SendMsgPQ _ _ _ = Nothing
+
+transUpd2SendMsgP :: Update -> Text -> Text -> Maybe RequestContent
+transUpd2SendMsgP upd txt url = (\(RSendMsg x) -> RSendMsg x{sm_messageChain = picChain : sm_messageChain x }) <$> transUpd2SendMsgT upd txt
   where picChain = (emptyChainMessage "Image"){cm_url = Just url}
 
-mkSendMsgT :: Update -> Text -> Maybe RequestContent
-mkSendMsgT upd@(MUpdate MessageUpdate{..}) txt =
+transUpd2SendMsgT :: Update -> Text -> Maybe RequestContent
+transUpd2SendMsgT upd@(MUpdate MessageUpdate{..}) txt =
   let initMsg = case getChatType upd of
                   Just Group  -> Just $ SendMsg Nothing (getGroupId upd) Nothing []
                   Just Temp   -> Just $ SendMsg (getUserId upd) (getGroupId upd) Nothing []
                   Just Friend -> Just $ SendMsg (getUserId upd) Nothing Nothing []
                   Nothing -> Nothing in
   (\x -> RSendMsg $ x {sm_messageChain = [mkTextMessageChain txt]}) <$> initMsg
-mkSendMsgT upd@(EUpdate EventUpdate{..}) txt 
+transUpd2SendMsgT upd@(EUpdate EventUpdate{..}) txt 
  | upde_type == "BotInvitedJoinGroupRequestEvent" =
                   Just $ RSendMsg $ SendMsg Nothing (getGroupId upd) Nothing [mkTextMessageChain txt]
  | upde_type == "NewFriendRequestEvent" =
     case getUserId upd of
       Just usrId' -> Just $ RSendMsg $ SendMsg (Just usrId') (getGroupId upd) Nothing [mkTextMessageChain txt]
       Nothing -> Nothing
+ | upde_type == "MemberJoinRequestEvent" =
+                  Just $ RSendMsg $ SendMsg Nothing (getGroupId upd) Nothing [mkTextMessageChain txt]
  | otherwise = Nothing
-mkSendMsgT _ _ = Nothing
+transUpd2SendMsgT _ _ = Nothing
 
 mkTextMessageChain :: Text -> ChainMessage
 mkTextMessageChain txt = (emptyChainMessage "Plain") {cm_text = Just txt}
 
-mkSendMsgTQ :: Update -> Text -> Maybe RequestContent
-mkSendMsgTQ upd@(MUpdate MessageUpdate{..}) txt = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> mkSendMsgT upd txt
-mkSendMsgTQ _ _ = Nothing
+transUpd2SendMsgTQ :: Update -> Text -> Maybe RequestContent
+transUpd2SendMsgTQ upd@(MUpdate MessageUpdate{..}) txt = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> transUpd2SendMsgT upd txt
+transUpd2SendMsgTQ _ _ = Nothing
 
 getMessageTime :: Update -> Maybe Integer
 getMessageTime (MUpdate MessageUpdate{updm_messageChain = chain})= cm_time $ head chain

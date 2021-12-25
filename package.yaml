@@ -40,7 +40,7 @@ dependencies:
 - mime-mail
 - smtp-mail
 - sqlite-simple
-
+# - process
 
 library:
   source-dirs: src
@@ -57,7 +57,7 @@ executables:
     - nubot
     when:
     - condition: false
-      other-modules: Paths_nubot
+      # other-modules: Paths_nubot
 
 tests:
   nubot-test:
@@ -71,4 +71,4 @@ tests:
     - nubot
     when:
     - condition: false
-      other-modules: Paths_nubot
+      # other-modules: Paths_nubot

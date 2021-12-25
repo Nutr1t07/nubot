@@ -17,19 +17,21 @@ import qualified Data.ByteString.Char8 as Char8
 import Type.Mirai.Common (ChatType)
 import Util.Json ( dropToJSON )
 import Util.Log ( logWT, LogTag(..), logWT'C8, logErr )
-import Control.Concurrent (threadDelay)
+import Control.Concurrent (threadDelay, forkIO)
 import Control.Exception (try, SomeException (SomeException))
 
 type Connection = WS.Connection
 
-runConn :: Config -> (Update -> Connection -> IO ()) -> IO ()
-runConn Config{..} f = WS.runClient ws_addr ws_port path app
+runConn :: Config -> (Update -> Connection -> IO ()) -> (Connection -> IO ()) -> IO ()
+runConn Config{..} f prepareAct = WS.runClient ws_addr ws_port path app
   where
       path = "/all?verifyKey=" <> mirai_verify_key 
                   <> "&qq="    <> show mirai_qq_id
 
       app conn = do
           logWT Info "websocket connected"
+          forkIO $ prepareAct conn
+
           forever $ do
             raw <- WS.receiveData conn :: IO ByteString
             logWT'C8 Debug ("received message: " <> toStrict raw)

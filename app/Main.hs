@@ -16,6 +16,7 @@ import Data.TaskQueue (emptyTaskQueue)
 import Data.User
 import Data.Mirai (initMsgLogDB)
 import GHC.IO.Encoding
+import Data.Schedule
 
 main :: IO ()
 main = do
@@ -24,10 +25,17 @@ main = do
   cfg <- readConfig
   when (isJust cfg) $ do
     userGroup <- getUserGroup
+    schedule <- getSchedule
     taskQueue <- emptyTaskQueue (saveUserGroup userGroup)
     repliedTable <- emptyRepliedTable
     runConn (fromJust cfg)
-      (mainHandler (mirai_qq_id $ fromJust cfg) taskQueue userGroup repliedTable)
+      (mainHandler (mirai_qq_id $ fromJust cfg) taskQueue userGroup schedule repliedTable)
+      (runSchedule schedule)
+
+getSchedule :: IO Schedule
+getSchedule = do
+  sch <- readSchedule  -- read from local file
+  maybe emptySchedule pure sch
 
 getUserGroup :: IO UserGroup
 getUserGroup = do

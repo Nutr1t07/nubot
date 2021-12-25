@@ -30,7 +30,7 @@ saveUserGroup grp = do
 
 readUserGroup :: IO (Maybe UserGroup)
 readUserGroup = do
-  raw <- fromRight "BL.empty" <$> (try (BS.readFile savePath) :: IO (Either SomeException BS.ByteString))
+  raw <- fromRight BS.empty <$> (try (BS.readFile savePath) :: IO (Either SomeException BS.ByteString))
   case deserialiseOrFail (BL.fromStrict raw) of
     Right x -> Just <$> newIORef x
     Left err -> logErr "reading user group from local file" (show err) >> pure Nothing

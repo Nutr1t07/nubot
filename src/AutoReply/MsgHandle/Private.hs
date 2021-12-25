@@ -5,9 +5,9 @@ import Data.Mirai
     ( getText,
       getPlainText,
       getMessageTime,
-      mkSendMsgTQ,
+      transUpd2SendMsgTQ,
       getChatType,
-      mkSendMsgT )
+      transUpd2SendMsgT )
 import Network.Mirai ( Connection, sendMessage ) 
 import Type.Mirai.Update
     ( Sender(sdr_remark), MessageUpdate(updm_sender), Update(MUpdate) )
@@ -37,7 +37,7 @@ import Module.WebSearch ( runBaiduSearch, runBaikeSearch )
 import Util.Log (logWT'T, LogTag (Debug, Info), logWT, logErr)
 import Type.Mirai.Common (ChatType(Friend))
 import Network.Mail (sendUpdateToEmail)
-import AutoReply.Misc ( equalT, elemTs, trimT )
+import AutoReply.Misc ( equalT, elemTs, trimT, elemT )
 
 stateHandler :: User -> Connection -> Update -> RepliedTable -> IO User
 stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
@@ -203,8 +203,8 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
     msgTxtElem = elemTs msgTxt
 
     reply' = sendMessage (fromJust $ getChatType upd) conn 
-    reply  txt = reply' (mkSendMsgT upd txt)
-    replyQ txt = reply' (mkSendMsgTQ upd txt)
+    reply  txt = reply' (transUpd2SendMsgT upd txt)
+    replyQ txt = reply' (transUpd2SendMsgTQ upd txt)
     replyOnce  = replyOnce' reply
     replyOnceQ = replyOnce' replyQ
 

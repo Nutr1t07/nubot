@@ -13,7 +13,7 @@ import qualified Data.Tuple                    as Tup (swap)
 import qualified Network.URI                   as URI (
                                                 escapeURIString
                                               , isUnescapedInURI )
-                                              
+
 showT :: forall a. Show a => a -> Text.Text
 showT = Text.pack . show
 
