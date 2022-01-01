@@ -42,7 +42,7 @@ sendTarget conn txt (Group gid) = sendMessage CT.Group conn (Just (mkSendMsgT No
 runSchedule :: Schedule -> Connection -> IO a
 runSchedule scheRef conn = forever . void $ ((try $ do
           currHour <- todHour .localTimeOfDay . zonedTimeToLocalTime <$> getZonedTime
-          let sleepTo10 = if currHour /= 10 then threadDelay (oneMin * 60 * 24) >> sleepTo10 else pure ()
+          let sleepTo10 = if currHour /= 11 then threadDelay (oneMin * 60) >> sleepTo10 else pure ()
           sleepTo10
           let singleRun (funcName, targets) = do
                 rst <- getFunc funcName
@@ -52,7 +52,6 @@ runSchedule scheRef conn = forever . void $ ((try $ do
           (ScheduleTable sche) <- readIORef scheRef
           traverse_ singleRun sche
           threadDelay (oneMin * 60 * 24)
-          
        ) :: IO (Either SomeException ()))
 
 getFunc :: String -> IO (Maybe Text)

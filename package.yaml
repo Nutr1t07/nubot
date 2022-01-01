@@ -40,7 +40,6 @@ dependencies:
 - mime-mail
 - smtp-mail
 - sqlite-simple
-# - process
 
 library:
   source-dirs: src
