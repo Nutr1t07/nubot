@@ -52,7 +52,7 @@ data EventUpdate = EventUpdate {
   , upde_nick         :: Maybe Text
   , upde_message      :: Maybe Text
 
-
+  , upde_group        :: Maybe Sender
 } deriving (Show, Generic)
 instance Serialise EventUpdate
 instance FromJSON EventUpdate where

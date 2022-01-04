@@ -104,7 +104,6 @@ runBaikeSearch query = do
       Nothing -> pure (Nothing, Nothing)
       Just realUrl -> do
         rst <- getFirstPara <$> Wreq.get realUrl
-        logWT Info realUrl
         let url' = T.pack $ Misc.encodeURI realUrl
         case rst of
           Nothing -> pure (Nothing, Just url')

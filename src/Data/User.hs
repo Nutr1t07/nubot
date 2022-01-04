@@ -92,11 +92,11 @@ data User = User {
 instance Serialise User
 
 data Flag  = TooMuchWord | Editing Int
-  deriving (Eq, Generic)
+  deriving (Eq, Generic, Show)
 instance Serialise Flag
 
 data State = Greeting | Recording | Idle | Searching
-  deriving (Eq, Generic)
+  deriving (Eq, Generic, Show)
 instance Serialise State
 
 type RepliedTable = IORef [(UserID, [Text])]

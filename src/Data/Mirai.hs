@@ -124,6 +124,7 @@ getReplyId (MUpdate MessageUpdate{updm_messageChain = cm}) = case filter (\x -> 
 getReplyId _ = Nothing
 
 getUserNick :: Update -> Maybe Text
+getUserNick (EUpdate EventUpdate{..}) = upde_nick
 getUserNick (MUpdate MessageUpdate{..}) = sdr_nickname updm_sender
 getUserNick _ = Nothing
 
@@ -135,6 +136,11 @@ getGroupId :: Update -> Maybe Integer
 getGroupId (MUpdate MessageUpdate{..}) = grp_id <$> sdr_group updm_sender
 getGroupId (EUpdate EventUpdate{..}) = upde_groupId
 getGroupId _ = Nothing
+
+getGroupName :: Update -> Maybe Text
+getGroupName (MUpdate MessageUpdate{..}) = grp_name <$> sdr_group updm_sender
+getGroupName (EUpdate EventUpdate{..}) = grp_name <$> (sdr_group =<< upde_group)
+getGroupName _ = Nothing
 
 getChatType :: Update -> Maybe ChatType
 getChatType (MUpdate MessageUpdate{..}) = case updm_type of
