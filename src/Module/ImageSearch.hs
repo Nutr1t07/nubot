@@ -73,7 +73,7 @@ runSauceNAOSearch url = runEitherT $ do
   getErrHint excp =
     if snd (T.breakOn "rate limit" (T.pack $ show excp)) == ""
       then "请求错误: " <> T.pack (show excp)
-      else "技能冷却中！请稍后重试"
+      else "技能冷却中! 请稍后重试"
   apiKey = "d4c5f40172cb923c73c409538f979482a469d5a7"
   opts =
     defaults
@@ -161,7 +161,7 @@ getSearchUrls :: Text -> IO (Either Text Text)
 getSearchUrls imgUrl = runEitherT $ do
     if imgUrl == T.empty then exitErr "无法获取图片地址。" else pure ()
     result  <- lift $ getAscii2dUrls imgUrl
-    if isNothing result then exitErr "Ascii2d 没有返回结果" else pure ()
+    if isNothing result then exitErr "Ascii2d 没有返回结果。若图片过长，请截取其部分再进行搜索" else pure ()
     pure $ Misc.unlines
       [ "A2d色合> " <> fst (fromJust result)
       , "A2d特征> " <> snd (fromJust result)

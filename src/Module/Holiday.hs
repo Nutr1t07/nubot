@@ -24,7 +24,7 @@ getHolidayText = do
                       "" -> Nothing
                       _  -> do
                         let number = if hld_now hld /= 0 then "的第" <> digitToCN (hld_now hld) <> "天" else ""
-                        let name = if hld_enname hld /= "" then hld_name hld <> " (" <> hld_enname hld <> ") " else ""
+                        let name = hld_name hld <> if hld_enname hld /= "" then " (" <> hld_enname hld <> ") " else ""
                         let tip  = if hld_now hld == 0 then hld_tip hld else ""
                         Just $ "今天是" <> name <> number <> "。" <> tip
   pure $ textIt =<< hld'
