@@ -24,14 +24,15 @@ mainHandler :: Int -> TaskQueue -> UserGroup -> Schedule -> RepliedTable -> Upda
 mainHandler selfId taskQueue userGrp schedule replyTable upd conn = flip runReaderT env $ do
   lift $ storeMsg upd
   case () of
-    _ | isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId ->
-          lift $ addTask taskQueue $ (`runReaderT` env) _privMsgHandler
+    _ 
+    --   | isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId ->
+    --       lift $ addTask taskQueue $ (`runReaderT` env) _privMsgHandler
 
-      | isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId ->
-          lift $ addTask taskQueue $ (`runReaderT` env) _privMsgHandler
+    --   | isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId ->
+    --       lift $ addTask taskQueue $ (`runReaderT` env) _privMsgHandler
 
-      | isAddFriendEvent upd ->
-          _addFriendHandler
+    --   | isAddFriendEvent upd ->
+    --       _addFriendHandler
 
       | isFromGroup upd ->
           _grpMsgHandler

@@ -41,9 +41,12 @@ sendTarget conn txt (Group gid) = sendMessage CT.Group conn (Just (mkSendMsgT No
 
 runSchedule :: Schedule -> Connection -> IO a
 runSchedule scheRef conn = forever . void $ ((try $ do
-          currHour <- todHour .localTimeOfDay . zonedTimeToLocalTime <$> getZonedTime
-          let sleepTo10 = if currHour /= 11 then threadDelay (oneMin * 60) >> sleepTo10 else pure ()
-          sleepTo10
+          let sleep' = do
+                currHour <- todHour .localTimeOfDay . zonedTimeToLocalTime <$> getZonedTime
+                if currHour /= 11
+                   then threadDelay (oneMin * 60) >> sleep'
+                   else pure ()
+          sleep'
           let singleRun (funcName, targets) = do
                 rst <- getFunc funcName
                 case rst of

@@ -7,5 +7,5 @@ extra-deps:
 
 
 nix:
-  enable: true
+  enable: false
   packages: [ zlib ]

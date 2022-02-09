@@ -7,7 +7,7 @@ import Type.Mirai.Update
     ( Sender(sdr_id), MessageUpdate(updm_sender), Update(MUpdate) )
 import AutoReply.MsgHandle.Private ( stateHandler, incStage )
 import AutoReply.MsgHandle.Group
-    ( searchImageHdl, pingHdl, searchBaiduHdl, addScheduleHdl, getScheduleHdl, rmScheduleHdl )
+    ( searchImageHdl, pingHdl, searchBaiduHdl, searchGoogleHdl, addScheduleHdl, getScheduleHdl, rmScheduleHdl )
 import AutoReply.Misc ( equalT, beginWithT )
 import AutoReply.HandleEnv
     ( HandleEnv(connection, replyTable, userGroup, update) )
@@ -41,12 +41,11 @@ _grpMsgHandler = do
   let msgTxt = fromMaybe "" $ getPlainText upd
       equal' = equalT msgTxt
       begin' = beginWithT msgTxt
-  lift $ logWT'T Info ("[_grpMsgHandler] cmd received from " <> fromMaybe "UNKNOWN" (getGroupName upd) <> ": " 
-            <> fromMaybe "" (getPlainText upd))
   guard' (isMessage upd) $ case () of
       _ | equal' "sp"     -> searchImageHdl
         | equal' "ping"   -> pingHdl
         | begin' "baidu'" -> searchBaiduHdl
+        | begin' "google'" -> searchGoogleHdl
         | begin' "addSchedule'" -> addScheduleHdl
         | begin' "getSchedule'" -> getScheduleHdl
         | begin' "rmSchedule'" -> rmScheduleHdl

@@ -1,5 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE OverloadedStrings, RankNTypes #-}
 module Util.Misc where
 
 import qualified Data.ByteString               as BS
@@ -31,6 +30,15 @@ searchBetweenBL
 searchBetweenBL left right content =
   let fstround = snd $ BL.breakAfter left content
   in  checkEmpty $ fst (BL.breakOn right fstround)
+
+-- searchBetweenBL, but from different direction
+searchBetweenBL'
+  :: BS.ByteString -> BS.ByteString -> BL.ByteString -> Maybe BL.ByteString
+searchBetweenBL' left right content =
+  let fstround = fst $ BL.breakOn right content
+      result = (BL.breakOn left $ BL.reverse fstround)
+      ret = checkEmpty $ BL.reverse $ fst $ result
+  in ret
 
 searchBetweenText :: Text.Text -> Text.Text -> Text.Text -> Maybe Text.Text
 searchBetweenText left right content =

@@ -16,7 +16,7 @@ import Util.Log ( logWT, LogTag(Info) )
 import Data.Maybe ( fromMaybe, fromJust )
 import qualified Data.Text as T
 import AutoReply.Misc (trimT, trimT')
-import Module.WebSearch (runBaiduSearch)
+import Module.WebSearch (runBaiduSearch, runGoogleSearch)
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import Util.Misc (showT)
 import Data.Schedule (scheduleFuncMap, Target (Group), addSchedule, saveSchedule, rmSchedule, Schedule)
@@ -61,7 +61,19 @@ searchBaiduHdl = do
   where
     getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
 
-
+searchGoogleHdl :: ReaderT HandleEnv IO ()
+searchGoogleHdl = do
+  upd <- asks update
+  let msgTxt = fromMaybe "" (getPlainText upd)
+  let query = getQueryText msgTxt
+  lift $ logWT Info $ "[searchGoogleHdl] searching text: " <> show query
+  baiduRst <- lift $ runGoogleSearch query
+  case baiduRst of
+    Just (link, title, abstract) ->
+      reply $ title <> "\n\n" <> abstract <> "\n\n" <> link
+    Nothing -> pure ()
+  where
+    getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
 
 _addOrRemoveSchedule :: (Target -> String -> Schedule -> IO (Either String ()))
                             -> ReaderT HandleEnv IO ()
