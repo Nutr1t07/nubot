@@ -1,16 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Util.Log ( logErr, logWT, logWT'C8, logWT'T, logWT'BL, LogTag(..))where
 
-import Data.Time ( defaultTimeLocale, formatTime, getZonedTime )
-import System.IO ( hFlush, stdout )
+import           Data.Time ( defaultTimeLocale, formatTime, getZonedTime )
+import           System.IO ( hFlush, stdout )
+import           Data.Text (Text)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy.Char8 as Char8L
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString as B
-import Data.Text (Text)
 import qualified Data.Text as T
-import Prelude hiding (log)
 import qualified Data.Text.IO as T
+import           Prelude hiding (log)
+
+
+
+
+
+
 
 enviroment :: String
 -- enviroment = "Debug"

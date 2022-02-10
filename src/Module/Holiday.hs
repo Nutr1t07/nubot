@@ -1,32 +1,37 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
-module Module.Holiday where
+{-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
+module Module.Holiday ( getHolidayText_out ) where
 
-import Data.Text (Text)
-import Data.Aeson
-    ( FromJSON(parseJSON), eitherDecode, ToJSON(toJSON) )
-import Network.Wreq as Wreq
-    ( getWith, defaults, param, responseBody )
-import Control.Lens ( (&), (^.), (.~) )
+import           Data.Text (Text)
+import           Data.Aeson ( FromJSON(parseJSON), eitherDecode, ToJSON(toJSON) )
+import           Network.Wreq as Wreq ( getWith, defaults, param, responseBody )
+import           Control.Lens ( (&), (^.), (.~) )
 import qualified Data.Text as T
-import Util.Log (logWT, LogTag (Error))
-import Util.Json ( dropParseJSON, dropToJSON )
-import GHC.Generics ( Generic )
-import Util.Time (getDate)
+import           Util.Log (logWT, LogTag (Error))
+import           Util.Json ( dropParseJSON, dropToJSON )
+import           GHC.Generics ( Generic )
+import           Util.Time ( getTomorrowDate )
+import           Type.Mirai.Common  ( ChainMessage(ChainMessage) )
+import           Data.Mirai  ( mkMessageChainT )
 
+getHolidayText_out :: IO [[ChainMessage]]
+getHolidayText_out = do
+  rst <- getHolidayText
+  case rst of
+    Nothing -> pure []
+    Just x -> pure $ [mkMessageChainT x]
 
 getHolidayText :: IO (Maybe Text)
 getHolidayText = do
-  date <- getDate "%Y-%m-%d"
+  date <- getTomorrowDate "%Y-%m-%d"
   hld' <- getHoliday date
-  today <- getDate "%m-%d %R"
+  -- today <- getTomorrowDate "%m-%d %R"
   let textIt hld = case hld_name hld of
                       "" -> Nothing
                       _  -> do
                         let number = if hld_now hld /= 0 then "的第" <> digitToCN (hld_now hld) <> "天" else ""
                         let name = hld_name hld <> if hld_enname hld /= "" then " (" <> hld_enname hld <> ") " else ""
                         let tip  = if hld_now hld == 0 then hld_tip hld else ""
-                        Just $ "今天是" <> name <> number <> "。" <> tip
+                        Just $ "明天是" <> name <> number <> "。" <> tip
   pure $ textIt =<< hld'
   where
     digitToCN 0 = "零"

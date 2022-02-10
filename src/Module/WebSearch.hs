@@ -26,6 +26,11 @@ import Util.Misc as Misc
     ( breakOnEnd, breakOn, searchBetweenBL, searchBetweenBL', encodeURI )
 import Util.Log ( logWT, LogTag(Info) )
 
+
+
+
+
+
 getWords :: BL.ByteString -> [Text]
 getWords ""  = []
 getWords str = (strip . toStrict . decodeUtf8 $ fst (BL.breakOn "<" xs))
@@ -47,8 +52,7 @@ runGoogleSearch :: Text -> IO (Maybe (Text, Text, Text))
 runGoogleSearch query = if query == T.empty
   then return Nothing
   else do
-      resp <- (^. Wreq.responseBody) <$> Wreq.getWith (googleOpts query) "https://www.google.com.hk/search"
-      Prelude.writeFile "test.html" $ UTF8.toString resp
+      resp <- (BL.drop 50000) . (^. Wreq.responseBody) <$> Wreq.getWith (googleOpts query) "https://www.google.com.hk/search"
       let ans = getFstAns resp
       pure $ Just
         ( getLink ans
@@ -90,8 +94,7 @@ runBaiduSearch :: Text -> IO (Maybe (Text, Text, Text, Text))
 runBaiduSearch query = if query == T.empty
     then return Nothing
     else do
-      resp <- (^. Wreq.responseBody) <$> Wreq.getWith (baiduOpts query) "https://www.baidu.com/s"
-      Prelude.writeFile "test.html" $ UTF8.toString resp
+      resp <- (BL.drop 290000) . (^. Wreq.responseBody) <$> Wreq.getWith (baiduOpts query) "https://www.baidu.com/s"
       let ans = getFstAns resp
       pure $ Just
         ( getLink ans

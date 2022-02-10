@@ -6,6 +6,7 @@ import GHC.Generics ( Generic )
 import Data.Aeson (ToJSON (toJSON))
 import Util.Json (dropToJSON)
 import Data.Text (Text)
+import Data.Text as T (empty)
 
 
 
@@ -13,6 +14,8 @@ data RequestContent = RSendMsg SendMsg | REvent Event
  deriving (Generic, Show)
 instance ToJSON RequestContent where
   toJSON = dropToJSON 0
+
+defSendMsg = SendMsg Nothing Nothing Nothing []
 
 data SendMsg = SendMsg {
     sm_qq     :: Maybe Integer
@@ -22,6 +25,8 @@ data SendMsg = SendMsg {
 } deriving (Generic, Show)
 instance ToJSON SendMsg where
   toJSON = dropToJSON 3
+
+defEvent = Event 0 0 Nothing 0 T.empty
 
 data Event = Event {
     ev_eventId   :: Integer

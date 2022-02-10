@@ -2,14 +2,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Data.Mirai where
 
-import Type.Mirai.Update
-import Type.Mirai.Common
-import Data.Maybe
-import Type.Mirai.Request
-import qualified Data.Text as T
-import           Database.SQLite.Simple
+import           Data.Maybe
 import           Data.Text (Text)
-import Data.List (intersperse)
+import qualified Data.Text as T
+import           Data.List (intersperse)
+import           Database.SQLite.Simple
+
+import           Type.Mirai.Update
+import           Type.Mirai.Common
+import           Type.Mirai.Request
 
 isFromUser :: Update -> Bool
 isFromUser (MUpdate MessageUpdate{..})
@@ -65,9 +66,6 @@ mkGroupEventResp upd@(EUpdate EventUpdate{..}) op =
     else Nothing
 mkGroupEventResp _ _ = Nothing
 
-mkSendMsgT :: Maybe Integer -> Maybe Integer -> Text -> RequestContent
-mkSendMsgT gid uid txt = RSendMsg $ SendMsg gid uid Nothing [mkTextMessageChain txt]
-
 transUpd2SendMsgPQ :: Update -> Text -> Text -> Maybe RequestContent
 transUpd2SendMsgPQ upd@(MUpdate MessageUpdate{..}) txt url = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> transUpd2SendMsgP upd txt url
 transUpd2SendMsgPQ _ _ _ = Nothing
@@ -83,21 +81,26 @@ transUpd2SendMsgT upd@(MUpdate MessageUpdate{..}) txt =
                   Just Temp   -> Just $ SendMsg (getUserId upd) (getGroupId upd) Nothing []
                   Just Friend -> Just $ SendMsg (getUserId upd) Nothing Nothing []
                   Nothing -> Nothing in
-  (\x -> RSendMsg $ x {sm_messageChain = [mkTextMessageChain txt]}) <$> initMsg
+  (\x -> RSendMsg $ x {sm_messageChain = (mkMessageChainT txt)}) <$> initMsg
 transUpd2SendMsgT upd@(EUpdate EventUpdate{..}) txt 
  | upde_type == "BotInvitedJoinGroupRequestEvent" =
-                  Just $ RSendMsg $ SendMsg Nothing (getGroupId upd) Nothing [mkTextMessageChain txt]
+                  Just $ RSendMsg $ SendMsg Nothing (getGroupId upd) Nothing (mkMessageChainT txt)
  | upde_type == "NewFriendRequestEvent" =
     case getUserId upd of
-      Just usrId' -> Just $ RSendMsg $ SendMsg (Just usrId') (getGroupId upd) Nothing [mkTextMessageChain txt]
+      Just usrId' -> Just $ RSendMsg $ SendMsg (Just usrId') (getGroupId upd) Nothing (mkMessageChainT txt)
       Nothing -> Nothing
  | upde_type == "MemberJoinRequestEvent" =
-                  Just $ RSendMsg $ SendMsg Nothing (getGroupId upd) Nothing [mkTextMessageChain txt]
+                  Just $ RSendMsg $ SendMsg Nothing (getGroupId upd) Nothing (mkMessageChainT txt)
  | otherwise = Nothing
 transUpd2SendMsgT _ _ = Nothing
 
-mkTextMessageChain :: Text -> ChainMessage
-mkTextMessageChain txt = (emptyChainMessage "Plain") {cm_text = Just txt}
+mkMessageChainT :: Text -> [ChainMessage]
+mkMessageChainT txt = [(emptyChainMessage "Plain") {cm_text = Just txt}]
+
+mkMessageChainTP :: Text -> [Text] -> [ChainMessage]
+mkMessageChainTP txt urls = ((emptyChainMessage "Plain") {cm_text = Just txt}) :
+  ((\url -> (emptyChainMessage "Image") {cm_url = Just url}) <$> urls)
+    
 
 transUpd2SendMsgTQ :: Update -> Text -> Maybe RequestContent
 transUpd2SendMsgTQ upd@(MUpdate MessageUpdate{..}) txt = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> transUpd2SendMsgT upd txt

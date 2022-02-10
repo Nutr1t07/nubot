@@ -43,6 +43,10 @@ mainHandler selfId taskQueue userGrp schedule replyTable upd conn = flip runRead
       | isInvitedToGroupEvent upd -> 
           _joinGroupHandler
 
+        -- TODO
+      -- | isSyncUpdate upd ->
+      --     _syncHandler
+
       | otherwise -> pure ()
   where
     env = HandleEnv conn upd taskQueue replyTable userGrp schedule selfId
