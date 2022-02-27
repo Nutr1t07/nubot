@@ -8,4 +8,4 @@ extra-deps:
 
 nix:
   enable: true
-  packages: [ chromium, imagemagick ]
+  packages: [ zlib, chromium, imagemagick ]
