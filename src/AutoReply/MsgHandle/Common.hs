@@ -14,17 +14,21 @@ import           AutoReply.Misc                   ( trimT, trimT')
 import           Data.Monads                      ( ReaderT, MonadTrans(lift), asks )
 import           Data.Maybe                       ( fromMaybe, fromJust )
 import qualified Data.Text                  as T
+import           Data.Text.Encoding         as T  ( decodeUtf8 )
+import qualified Data.ByteString            as BS
 import qualified Data.Text.IO               as T
-import           Data.Text.Encoding.Base64  as T  ( encodeBase64 )
+import           Data.ByteString.Base64           ( encodeBase64 )
 import           Data.Time.Clock.POSIX            ( getPOSIXTime)
 import           Data.Schedule                    ( scheduleFuncMap, Target (Group, User), addSchedule, saveSchedule, rmSchedule, Schedule)
 import           Data.IORef                       ( readIORef)
-import           Util.Log                         ( logWT, LogTag(Info) )
+import           Util.Log                         ( logWT, LogTag(Info, Debug, Error) )
 import           Util.Misc                        ( showT )
 import           Control.Exception
 import           Module.ImageSearch               ( runSauceNAOSearch )
 import           Module.WebSearch                 ( runBaiduSearch, runGoogleSearch )
 import           Module.Weather                   ( write7DayScreenshot, getNextRainyDay )
+
+
 searchImageHdl :: ReaderT HandleEnv IO ()
 searchImageHdl = do
   upd <- asks update
@@ -46,7 +50,7 @@ pingHdl = do
   upd <- asks update
   let msgTime = (* 1000) <$> getMessageTime upd
   let timeInterval = case msgTime of
-                       Just x -> let x' = ct - x' in showT $ if x' < 0 then 0 - x' else x'
+                       Just x -> let x' = ct - x in showT $ if x' < 0 then 0 - x' else x'
                        Nothing -> "UNKNOWN"
   replyQ $ "1 packet transmitted, 1 received, 0% packet loss, time " <> timeInterval <> "ms"
 
@@ -119,20 +123,22 @@ getWeatherHdl = do
   txt <- lift getNextRainyDay
   case txt of
     Just x -> reply x
-    _ -> pure ()
+    _ -> reply "未来一周无雨。"
   ret <- lift $ write7DayScreenshot
+  lift $ logWT Info $ "getting weather screenshot"
   case ret of
     False -> replyQ "从网络获取天气图像失败。"
     True -> do
-      picContent <- lift $ catch (encodeBase64 <$> T.readFile "screenshot.png") (\x -> const (pure "") (x::SomeException))
+      picContent <- lift $ catch ( encodeBase64 <$> BS.readFile "screenshot.png") (\x ->  ((logWT Error $ "error reading screenshot.png" <> show (x::SomeException)) >> pure ""))
       case picContent of
         "" -> replyQ "读取天气图像文件失败。"
-      replyPicBase64 "" picContent
+        _  -> replyPicBase64 "" picContent
 
 
 reply' f = do
   upd <- asks update
   conn <- asks connection
+  lift $ logWT Debug $ "sending message" <> show (f upd)
   lift $ sendMessage (fromJust $ getChatType upd) conn (f upd)
 reply text = reply' (`transUpd2SendMsgT` text)
 replyQ text = reply' (`transUpd2SendMsgTQ` text)

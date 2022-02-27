@@ -90,10 +90,10 @@ _grpMsgHandler = do
   guard' (isMessage upd) $ case () of
       _ | equal' "sp"     -> searchImageHdl
         | equal' "ping"   -> pingHdl
+        | equal' "weather" -> getWeatherHdl
         | begin' "baidu'" -> searchBaiduHdl
         | begin' "google'" -> searchGoogleHdl
         | begin' "addSchedule'" -> addScheduleHdl
         | begin' "getSchedule'" -> getScheduleHdl
         | begin' "rmSchedule'" -> rmScheduleHdl
-        | equal' "weather'" -> getWeatherHdl
         | otherwise -> pure ()
