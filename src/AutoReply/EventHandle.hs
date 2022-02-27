@@ -37,8 +37,7 @@ _addFriendHandler = do
     let resp = mkFriendEventResp upd 0
     logWT Info ("[_addFriendHandler] new friend " <> show (userId usr) <> " added")
     sendCommand "resp_newFriendRequestEvent" (connection env) resp
-    reply "嗨，我当前不在线"
-    reply "您的好友请求已由机器人自动同意，发送『帮助』以查看此机器人的功能"
+    reply "您的好友请求已由机器人自动同意"
     void $ replaceUser (userGroup env) (setState Idle usr)
 
 _joinGroupHandler :: ReaderT HandleEnv IO ()

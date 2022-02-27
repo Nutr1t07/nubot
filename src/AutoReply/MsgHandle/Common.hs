@@ -1,27 +1,30 @@
 {-# LANGUAGE OverloadedStrings #-}
-module AutoReply.MsgHandle.Group where
+module AutoReply.MsgHandle.Common where
 
-import Network.Mirai ( sendMessage )
-import Data.Mirai
-    ( getPlainText,
-      getImgUrls',
-      transUpd2SendMsgTQ,
-      getChatType,
-      transUpd2SendMsgT,
-      transUpd2SendMsgPQ, getMessageTime, getGroupId )
-import Module.ImageSearch ( runSauceNAOSearch )
-import AutoReply.HandleEnv ( HandleEnv(update, connection, schedule) )
-import Data.Monads ( ReaderT, MonadTrans(lift), asks )
-import Util.Log ( logWT, LogTag(Info) )
-import Data.Maybe ( fromMaybe, fromJust )
-import qualified Data.Text as T
-import AutoReply.Misc (trimT, trimT')
-import Module.WebSearch (runBaiduSearch, runGoogleSearch)
-import Data.Time.Clock.POSIX (getPOSIXTime)
-import Util.Misc (showT)
-import Data.Schedule (scheduleFuncMap, Target (Group), addSchedule, saveSchedule, rmSchedule, Schedule)
-import Data.IORef (readIORef)
-
+import           Network.Mirai                    ( sendMessage )
+import           Data.Mirai                       ( getPlainText,
+                                                    getImgUrls',
+                                                    transUpd2SendMsgTQ,
+                                                    transUpd2SendMsgPBase64,
+                                                    getChatType,
+                                                    transUpd2SendMsgT,
+                                                    transUpd2SendMsgPQ, getMessageTime, getGroupId, getUserId )
+import           AutoReply.HandleEnv              ( HandleEnv(update, connection, schedule) )
+import           AutoReply.Misc                   ( trimT, trimT')
+import           Data.Monads                      ( ReaderT, MonadTrans(lift), asks )
+import           Data.Maybe                       ( fromMaybe, fromJust )
+import qualified Data.Text                  as T
+import qualified Data.Text.IO               as T
+import           Data.Text.Encoding.Base64  as T  ( encodeBase64 )
+import           Data.Time.Clock.POSIX            ( getPOSIXTime)
+import           Data.Schedule                    ( scheduleFuncMap, Target (Group, User), addSchedule, saveSchedule, rmSchedule, Schedule)
+import           Data.IORef                       ( readIORef)
+import           Util.Log                         ( logWT, LogTag(Info) )
+import           Util.Misc                        ( showT )
+import           Control.Exception
+import           Module.ImageSearch               ( runSauceNAOSearch )
+import           Module.WebSearch                 ( runBaiduSearch, runGoogleSearch )
+import           Module.Weather                   ( write7DayScreenshot, getNextRainyDay )
 searchImageHdl :: ReaderT HandleEnv IO ()
 searchImageHdl = do
   upd <- asks update
@@ -43,7 +46,7 @@ pingHdl = do
   upd <- asks update
   let msgTime = (* 1000) <$> getMessageTime upd
   let timeInterval = case msgTime of
-                       Just x -> showT (ct - x)
+                       Just x -> let x' = ct - x' in showT $ if x' < 0 then 0 - x' else x'
                        Nothing -> "UNKNOWN"
   replyQ $ "1 packet transmitted, 1 received, 0% packet loss, time " <> timeInterval <> "ms"
 
@@ -81,9 +84,15 @@ _addOrRemoveSchedule f = do
   upd <- asks update
   let msgTxt = fromMaybe "" (getPlainText upd)
       funcName = getText msgTxt
-  case getGroupId upd of
-    Nothing -> replyQ "unable to fetch group id"
-    Just gid -> do
+  case (getGroupId upd, getUserId upd) of
+    (Nothing, Nothing)  -> replyQ "unable to fetch group id or user id"
+    (Nothing, Just uid) -> do
+            schRef <- asks schedule
+            rst <- lift $ f (User uid) (T.unpack funcName) schRef
+            case rst of
+              Right () -> replyQ "success" >> lift (saveSchedule schRef)
+              Left err -> replyQ $ T.pack err
+    (Just gid, _) -> do
             schRef <- asks schedule
             rst <- lift $ f (Group gid) (T.unpack funcName) schRef
             case rst of
@@ -105,7 +114,20 @@ getScheduleHdl = do
   sche <- lift $ readIORef schRef
   reply (showT sche)
 
-
+getWeatherHdl :: ReaderT HandleEnv IO ()
+getWeatherHdl = do
+  txt <- lift getNextRainyDay
+  case txt of
+    Just x -> reply x
+    _ -> pure ()
+  ret <- lift $ write7DayScreenshot
+  case ret of
+    False -> replyQ "从网络获取天气图像失败。"
+    True -> do
+      picContent <- lift $ catch (encodeBase64 <$> T.readFile "screenshot.png") (\x -> const (pure "") (x::SomeException))
+      case picContent of
+        "" -> replyQ "读取天气图像文件失败。"
+      replyPicBase64 "" picContent
 
 
 reply' f = do
@@ -115,3 +137,4 @@ reply' f = do
 reply text = reply' (`transUpd2SendMsgT` text)
 replyQ text = reply' (`transUpd2SendMsgTQ` text)
 replyPicQ text url = reply' (\upd -> transUpd2SendMsgPQ upd text url)
+replyPicBase64 text picBase64 = reply' (\upd -> transUpd2SendMsgPBase64 upd text picBase64)

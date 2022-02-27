@@ -7,10 +7,12 @@ import GHC.Generics ( Generic )
 import Util.Json (dropParseJSON, dropToJSON)
 import Codec.Serialise.Class (Serialise)
 
+import qualified Data.ByteString as BS
+
 data ChatType = Friend | Group | Temp deriving (Show)
 
 emptyChainMessage :: Text -> ChainMessage
-emptyChainMessage t = ChainMessage t Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+emptyChainMessage t = ChainMessage t Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 data ChainMessage = ChainMessage {
     cm_type     :: Text
@@ -27,9 +29,10 @@ data ChainMessage = ChainMessage {
   -- image
   , cm_imageId  :: Maybe Text
   , cm_url      :: Maybe Text
+  , cm_base64   :: Maybe Text
 
   -- miraicode
-  , cm_code        :: Maybe Text
+  , cm_code     :: Maybe Text
 
   -- quote
   , cm_origin   :: Maybe [ChainMessage]

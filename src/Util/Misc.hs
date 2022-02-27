@@ -6,15 +6,16 @@ import qualified Data.ByteString.Lazy          as BL
 import qualified Data.ByteString.Lazy.Search   as BL
 import qualified Data.List                     as List
 import           Data.String                    ( IsString )
-import qualified Data.Text                     as Text
+import qualified Data.Text                     as T
+import qualified Data.Text.Encoding            as T
 import qualified Control.Arrow                 as Arrow (first)
 import qualified Data.Tuple                    as Tup (swap)
 import qualified Network.URI                   as URI (
                                                 escapeURIString
                                               , isUnescapedInURI )
 
-showT :: forall a. Show a => a -> Text.Text
-showT = Text.pack . show
+showT :: forall a. Show a => a -> T.Text
+showT = T.pack . show
 
 encodeURI :: String -> String
 encodeURI = URI.escapeURIString predi
@@ -31,19 +32,33 @@ searchBetweenBL left right content =
   let fstround = snd $ BL.breakAfter left content
   in  checkEmpty $ fst (BL.breakOn right fstround)
 
--- searchBetweenBL, but from different direction
+-- searchBetweenBL, but in reverse direction
 searchBetweenBL'
   :: BS.ByteString -> BS.ByteString -> BL.ByteString -> Maybe BL.ByteString
-searchBetweenBL' left right content =
-  let fstround = fst $ BL.breakOn right content
-      result = (BL.breakOn left $ BL.reverse fstround)
-      ret = checkEmpty $ BL.reverse $ fst $ result
-  in ret
+searchBetweenBL' left right content = BL.reverse <$> searchBetweenBL (BS.reverse right) (BS.reverse left) (BL.reverse content)
 
-searchBetweenText :: Text.Text -> Text.Text -> Text.Text -> Maybe Text.Text
+
+transBL2TS :: BL.ByteString -> T.Text
+transBL2TS = T.decodeUtf8 . BL.toStrict
+
+isSubblOf
+  :: BS.ByteString -> BL.ByteString -> Bool
+isSubblOf small large =
+  case BL.breakOn small large of
+      (_, "") -> False
+      _ -> True
+
+
+searchBetweenText :: T.Text -> T.Text -> T.Text -> Maybe T.Text
 searchBetweenText left right content =
-  let fstround = snd $ Text.breakOn left content
-  in  checkEmpty $ fst (Text.breakOn right fstround)
+  let fstround = snd $ T.breakOn left content
+  in  checkEmpty $ fst (T.breakOn right fstround)
+
+-- searchAllBetweenBL, but in reverse direction
+searchAllBetweenBL'
+  :: BS.ByteString -> BS.ByteString -> BL.ByteString -> [BL.ByteString]
+searchAllBetweenBL' left right content = reverse $ BL.reverse
+  <$> searchAllBetweenBL (BS.reverse right) (BS.reverse left) (BL.reverse content)
 
 searchAllBetweenBL
   :: BS.ByteString -> BS.ByteString -> BL.ByteString -> [BL.ByteString]

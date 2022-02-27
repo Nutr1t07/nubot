@@ -29,8 +29,7 @@ library
       AutoReply.HandleEnv
       AutoReply.Handler
       AutoReply.Misc
-      AutoReply.MsgHandle
-      AutoReply.MsgHandle.Group
+      AutoReply.MsgHandle.Common
       AutoReply.MsgHandle.Private
       AutoReply.SyncHandle
       Data.Mirai
@@ -42,6 +41,7 @@ library
       Module.Holiday
       Module.IllustrationFetch
       Module.ImageSearch
+      Module.Weather
       Module.WebSearch
       Network.Mail
       Network.Mirai
@@ -61,6 +61,7 @@ library
   build-depends:
       aeson
     , base >=4.7 && <5
+    , base64
     , bytestring
     , lens
     , mime-mail
@@ -72,6 +73,7 @@ library
     , stringsearch
     , text
     , time
+    , turtle
     , utf8-string
     , websockets
     , wreq
@@ -85,6 +87,7 @@ executable nubot-exe
   build-depends:
       aeson
     , base >=4.7 && <5
+    , base64
     , bytestring
     , lens
     , mime-mail
@@ -97,6 +100,7 @@ executable nubot-exe
     , stringsearch
     , text
     , time
+    , turtle
     , utf8-string
     , websockets
     , wreq
@@ -111,6 +115,7 @@ test-suite nubot-test
   build-depends:
       aeson
     , base >=4.7 && <5
+    , base64
     , bytestring
     , lens
     , mime-mail
@@ -123,6 +128,7 @@ test-suite nubot-test
     , stringsearch
     , text
     , time
+    , turtle
     , utf8-string
     , websockets
     , wreq

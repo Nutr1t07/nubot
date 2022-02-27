@@ -24,7 +24,6 @@ import           Module.Holiday                 ( getHolidayText_out)
 import           Module.IllustrationFetch       ( fetchYandeRe24h_out )
 import           Util.Log                       ( logErr )
 
--- should be functions that has Maybe Int -> Maybe Int -> IO () as type
 type FuncName = String
 
 type Schedule = IORef ScheduleTable
@@ -36,6 +35,15 @@ instance Serialise ScheduleTable
 type Microsecond = Int
 oneMin :: Microsecond
 oneMin = 60000000
+
+
+data Task = Task {
+    procName :: String
+  , runHour :: Int
+  , runWeekDay :: [Int]
+  , intervalDay :: Int
+}
+
 
 sendTarget :: Connection -> [ChainMessage] -> Target -> IO ()
 sendTarget conn cm (User uid)  = sendMessage CT.Friend conn (Just . RSendMsg $ defSendMsg { sm_messageChain = cm, sm_qq = Just uid })

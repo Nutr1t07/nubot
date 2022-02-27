@@ -7,5 +7,5 @@ extra-deps:
 
 
 nix:
-  enable: false
-  packages: [ zlib ]
+  enable: true
+  packages: [ chromium, imagemagick ]
