@@ -9,22 +9,38 @@ import qualified Data.Text          as T
 import           Data.Text                     ( Text )
 import           Data.Text.Encoding as T
 import           Data.List                     ( findIndices, intersperse )
-
+import           Data.Char                     ( ord )
 
 getNextRainyDay :: IO (Maybe Text)
 getNextRainyDay = do
-    raw <- (^. responseBody) <$> Wreq.get "https://weather.com/weather/tenday/l/23.285665,116.148000"
+    raw <- (^. responseBody) <$> Wreq.get "https://weather.com/zh-CN/weather/tenday/l/23.285665,116.148000"
     let
-        weatherTypes = drop 1 $ take 7 $ searchAllBetweenBL' ">" "</span></div><div data-testid=\"P" raw
-        weatherDates = drop 1 $ take 7 $ searchAllBetweenBL' ">" "</h2><d" raw
-        rainPercents = drop 1 $ take 7 $ searchAllBetweenBL "PercentageValue\">" "<" raw
+        -- it's actually a 15-day forecast. and we only need 7 days.
+        weatherTypes = drop 1 $ take 15 $ searchAllBetweenBL' ">" "</span></div><div data-testid=\"P" raw
+        weatherDates = fmap transBL2TS $ drop 1 $ take 15 $ searchAllBetweenBL' ">" "</h2><d" raw
+        
+        rainPercents' = take 30 $ searchAllBetweenBL' ">" "</span></div><div c" raw
+        rainPercents  = transBL2TS <$> if length rainPercents' == 29
+                           then drop 1 rainPercents'
+                           else drop 2 rainPercents'
     let
-        indices = findIndices ("Shower" `isSubblOf`) weatherTypes
+        rainPcIndices = findIndices (\x -> T.length x == 4      -- '100%' has 4 characters
+                                       || (T.length x == 3 && ((ord.T.head) x) > 50) -- any larger than '30%'
+                                    ) rainPercents
 
-    case indices of
+    case rainPcIndices of
         [] -> pure Nothing
         _  -> pure . Just $ (T.pack "未来降水可能出现于: \n") <>
-                T.unlines ((\i -> showT i <> "天后(" <> transBL2TS (weatherDates !! i) <> ") (" <> transBL2TS (rainPercents !! i) <> ")") <$> indices)
+                T.unlines (fmap (\i -> 
+                    weatherDates !! (div i 2)
+                    <> ", "
+                    <> (if mod i 2 == 0 then "日" else "夜")
+                    <> ", "
+                    <> (rainPercents !! i)
+                    -- <> ","
+                    -- <> showT (1 + div i 2) <> "天后"
+                    ) rainPcIndices)
+
 
 write7DayScreenshot :: IO Bool
 write7DayScreenshot = do
