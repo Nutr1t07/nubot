@@ -6,12 +6,6 @@ author:              "Nutr1t07"
 maintainer:          "nutr1t07@outlook.com"
 copyright:           "2021 Nutr1t07"
 
-extra-source-files:
-- README.md
-- ChangeLog.md
-
-description:         Please see the README on GitHub at <https://github.com/nutr1t07/nubot#readme>
-
 dependencies:
 - base >= 4.7 && < 5
 - websockets

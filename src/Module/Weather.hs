@@ -11,6 +11,8 @@ import           Data.Text.Encoding as T
 import           Data.List                     ( findIndices, intersperse )
 import           Data.Char                     ( ord )
 
+import           Util.Log
+
 getNextRainyDay :: IO (Maybe Text)
 getNextRainyDay = do
     raw <- (^. responseBody) <$> Wreq.get "https://weather.com/zh-CN/weather/tenday/l/23.285665,116.148000"
@@ -37,8 +39,6 @@ getNextRainyDay = do
                     <> (if mod i 2 == 0 then "日" else "夜")
                     <> ", "
                     <> (rainPercents !! i)
-                    -- <> ","
-                    -- <> showT (1 + div i 2) <> "天后"
                     ) rainPcIndices)
 
 
@@ -46,7 +46,7 @@ write7DayScreenshot :: IO Bool
 write7DayScreenshot = do
     code <- callChromiumScreenshot (1280, 1700) "https://weather.com/zh-CN/weather/tenday/l/23.285665,116.148000"
     case code of
-        ExitFailure _ -> pure False
+        ExitFailure err -> pure False
         _ -> do
             code' <- callMogrifyCrop (770,430) (73,585)
             case code' of

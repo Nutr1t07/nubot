@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, RecordWildCards #-}
 module Data.Schedule where
 
 import           Network.Mirai                  ( sendMessage, Connection )
@@ -14,127 +14,200 @@ import           Data.IORef                     ( readIORef, IORef, newIORef, wr
 import qualified Data.ByteString.Lazy    as BL
 import qualified Data.ByteString         as BS
 import qualified Data.Text               as T
+import qualified Data.Text.Read          as T
 import qualified Data.Bifunctor
 import           Data.Bifunctor                 ( second )
-import           Data.Time                      ( getZonedTime, ZonedTime (zonedTimeToLocalTime), LocalTime (localTimeOfDay), TimeOfDay (todHour) )
+import           Data.Time
+import           Data.Time.Calendar.WeekDate
 import qualified Type.Mirai.Common       as CT  ( ChatType(Group, Friend), ChainMessage(ChainMessage))
 import           Type.Mirai.Common              ( ChainMessage(ChainMessage))
 import           Type.Mirai.Request
 import           Module.Holiday                 ( getHolidayText_out)
 import           Module.IllustrationFetch       ( fetchYandeRe24h_out )
 import           Util.Log                       ( logErr )
+import           Util.Misc                      ( showT )
 
 type FuncName = String
 
-type Schedule = IORef ScheduleTable
+type TaskListRef = IORef TaskList
 
-newtype ScheduleTable = ScheduleTable [(FuncName, [Target])]
-  deriving (Generic, Show)
-instance Serialise ScheduleTable
+
+data Target = User Integer | Group Integer
+  deriving (Generic, Eq, Show)
+instance Serialise Target
 
 type Microsecond = Int
 oneMin :: Microsecond
 oneMin = 60000000
 
 
+
+---------------------------------------------------------------------------------------------------
+-- Task
+
+newtype TaskList = TaskList [Task]
+  deriving (Generic, Show)
+instance Serialise TaskList
+
 data Task = Task {
-    procName :: String
-  , runHour :: Int
-  , runWeekDay :: [Int]
-  , intervalDay :: Int
-}
+    procName   :: String
+  , runTime    :: TimeInfo
+  , target     :: Target
+} deriving (Generic, Show)
+instance Serialise Task
+
+data TimeInfo = TimeInfo {
+    tMin       :: TimeField
+  , tHour      :: TimeField
+  , tDayOfMo   :: TimeField
+  , tMonth     :: TimeField
+  , tDayOfWeek :: TimeField
+} deriving (Generic, Show)
+instance Serialise TimeInfo
+
+data TimeField = MatchAll | MatchSome [BaseField]
+  deriving (Generic, Show)
+instance Serialise TimeField
+
+data BaseField = SingleField Int | RangeField Int Int 
+  deriving (Generic, Show)
+instance Serialise BaseField
+
+checkTimeSatisfied :: TimeInfo -> IO Bool
+checkTimeSatisfied TimeInfo{..} = do
+    currTime <- zonedTimeToLocalTime <$> getZonedTime
+    let [cMin, cHour] = [todMin, todHour] <*> (pure $ localTimeOfDay currTime)
+        (_, cMonth, cDayOfMo) = toGregorian $ localDay currTime
+        (_, _, cDayOfWeek) = toWeekDate $ localDay currTime
+    currHour <- todHour . localTimeOfDay . zonedTimeToLocalTime <$> getZonedTime
+
+    pure $ all id [ checkTimeField cMin tMin
+         , checkTimeField cHour tHour
+         , checkTimeField cDayOfMo tDayOfMo 
+         , checkTimeField cMonth tMonth
+         , checkTimeField cDayOfWeek tDayOfWeek]
+
+  where
+    checkTimeField _ MatchAll = True
+    checkTimeField curr (MatchSome xs)  = all (checkBaseField curr) xs
+
+    checkBaseField curr (SingleField x)  = x == curr
+    checkBaseField curr (RangeField min max) = curr >= min && curr <= max
+
+parseTimeInfo :: Text -> Either String TimeInfo
+parseTimeInfo str =
+  let raw = split' ' ' str in
+  if length raw /= 5
+    then Left "argument length exceeded, expected 5"
+    else 
+      fmap promote $ sequence =<< fmap (zipWith (\f x -> f x)
+              [guardTF 0 59, guardTF 0 23, guardTF 1 31, guardTF 1 12, guardTF 1 7])
+              (traverse parseSingle raw)
+
+  where
+    split' x = filter (/="") . T.split (==x)
+    elem' x xs = T.any (==x) xs
+
+    promote [a,b,c,d,e] = TimeInfo a b c d e
+
+    parseSingle :: Text -> Either String TimeField
+    parseSingle xs =
+      if xs == "*"
+        then Right MatchAll
+        else let items = split' ',' xs in
+             fmap MatchSome $ traverse (\x -> if '-' `elem'` x
+                       then (case split' '-' x of
+                              (min : max : _) ->
+                                   let min' = fst <$> T.decimal min
+                                       max' = fst <$> T.decimal max in
+                                   RangeField <$> min' <*> max'
+                              _ -> Left "spliting range field failed")
+                       else SingleField <$> fst <$> T.decimal x) items
+
+    guardTF min max xss@(MatchSome xs) = MatchSome <$> traverse (guardBF min max) xs
+    guardTF _ _ MatchAll = Right MatchAll
+    
+    guardBF min max field@(SingleField x) = if min <= x && max >= x then Right field else Left $ show field <> " out of range [" <> show min <> ", " <> show max <> "]"
+    guardBF min max field@(RangeField l r) 
+      | l == r    = Left "RangeField duplicate"
+      | l > r     = guardBF min max (RangeField r l) 
+      | otherwise = if min <= l && max >= r then Right field else Left $ show field <> " out of range [" <> show min <> ", " <> show max <> "]"
+
+---------------------------------------------------------------------------------------------------
 
 
 sendTarget :: Connection -> [ChainMessage] -> Target -> IO ()
 sendTarget conn cm (User uid)  = sendMessage CT.Friend conn (Just . RSendMsg $ defSendMsg { sm_messageChain = cm, sm_qq = Just uid })
 sendTarget conn cm (Group gid) = sendMessage CT.Group  conn (Just . RSendMsg $ defSendMsg { sm_messageChain = cm, sm_group = Just gid })
 
-runSchedule :: Schedule -> Connection -> IO a
-runSchedule scheRef conn = forever . void $ ((try $ do
-          let sleep' = do
-                currHour <- todHour . localTimeOfDay . zonedTimeToLocalTime <$> getZonedTime
-                if currHour /= 21
-                   then threadDelay (oneMin * 60) >> sleep'
-                   else pure ()
-          sleep'
-          let singleRun (funcName, targets) = do
-                rst <- getFunc funcName
-                sequence $ (sendTarget conn) <$> rst <*> targets
-          (ScheduleTable sche) <- readIORef scheRef
-          traverse_ singleRun sche
-          threadDelay (oneMin * 60 * 24)
+
+runScheduledTask :: TaskListRef -> Connection -> IO a
+runScheduledTask taskRef conn = forever . void $ ((try $ do
+          let singleRun (Task funcName timeInfo target') = do
+                runFlag <- checkTimeSatisfied timeInfo
+                if not runFlag
+                  then pure []
+                  else do rst <- getFunc funcName
+                          sequence $ (sendTarget conn) <$> rst <*> pure target'
+          (TaskList tasks) <- readIORef taskRef
+          traverse_ singleRun tasks
+          threadDelay oneMin
        ) :: IO (Either SomeException ()))
 
 getFunc :: String -> IO [[ChainMessage]]
-getFunc funcName = case lookup funcName scheduleFuncMap of
+getFunc funcName = case lookup funcName funcMap of
   Just f -> f
   _ -> pure []
 
-rmSchedule :: Target -> String -> Schedule -> IO (Either String ())
-rmSchedule t funcName scheRef = do
-  case lookup funcName scheduleFuncMap of
+
+rmScheduledTask :: String -> Target -> TaskListRef -> IO (Either String ())
+rmScheduledTask funcName t taskListRef = do
+  case lookup funcName funcMap of
     Nothing -> pure (Left "not found")
     Just x -> do
-      (ScheduleTable st) <- readIORef scheRef
-      case removeIt (False, st) of
-        (False, rst) -> pure $ Left "NOT yet in schedule"
-        (True, rst) -> Right <$> writeIORef scheRef (ScheduleTable rst)
+      (TaskList taskList) <- readIORef taskListRef
+      Right <$> writeIORef taskListRef (TaskList $ removeIt taskList)
 
   where
-    removeIt (b,  []) = (b, [])
-    removeIt (b, x@(fn, targets):xs) = if t `elem` targets
-                                          then (True, (fn, filter (/= t) targets):xs)
-                                          else
-                                            case removeIt (b, xs) of
-                                              (True, xxx) -> (True, x:xxx)
-                                              (False, xxx) -> second (x :) $ removeIt (b, xxx)
+    removeIt [] = []
+    removeIt (x:xs) = if target x == t && procName x == funcName
+                         then xs
+                         else x:(removeIt xs)
 
 
-addSchedule :: Target -> String -> Schedule -> IO (Either String ())
-addSchedule t funcName scheRef = do
-  case lookup funcName scheduleFuncMap of
+addScheduledTask :: TimeInfo -> String -> Target -> TaskListRef -> IO (Either String ())
+addScheduledTask timeInfo funcName t taskListRef = do
+  case lookup funcName funcMap of
     Nothing -> pure (Left "not found")
     Just _ -> do
-      (ScheduleTable st) <- readIORef scheRef
-      case replaceIt st of
-        Nothing -> pure $ Left "ALREADY in schedule"
-        Just x -> Right <$> writeIORef scheRef (ScheduleTable x)
-
+      (TaskList taskList) <- readIORef taskListRef
+      Right <$> writeIORef taskListRef (TaskList $ addIt taskList)
   where
-    replaceIt ::  [(FuncName, [Target])] -> Maybe [(FuncName, [Target])]
-    replaceIt [] = Just [(funcName, [t])]
-    replaceIt (x@(fn, targets):xs) = if fn == funcName
-                                    then if t `elem` targets then Nothing else Just ((fn, t:targets):xs)
-                                    else (x :) <$> replaceIt xs
+    addIt [] = [Task funcName timeInfo t]
+    addIt xss@(x:xs) = if target x /= t || procName x /= funcName
+                          then x : addIt xs
+                          else xss
 
 
+funcMap :: [(String, IO [[ChainMessage]])]
+funcMap = [ ("getHolidayText",  getHolidayText_out)
+          , ("fetchYandeRe24h", fetchYandeRe24h_out) ]
 
+taskListPath :: [Char]
+taskListPath = "taskList.dat"
 
--- scheduleFuncMap :: [(String, IO (Maybe Text))]
--- scheduleFuncMap = [("getHolidayText", getHolidayText)]
+emptyTaskList :: IO TaskListRef
+emptyTaskList = newIORef $ TaskList []
 
-scheduleFuncMap :: [(String, IO [[ChainMessage]])]
-scheduleFuncMap = [ ("getHolidayText",  getHolidayText_out)
-                  , ("fetchYandeRe24h", fetchYandeRe24h_out) ]
+saveTaskList :: TaskListRef -> IO ()
+saveTaskList taskListRef = do
+  schTable <- readIORef taskListRef
+  BL.writeFile taskListPath $ serialise schTable
 
-schedulePath :: [Char]
-schedulePath = "schedule.dat"
-
-emptySchedule :: IO Schedule
-emptySchedule = newIORef $ ScheduleTable []
-
-saveSchedule :: Schedule -> IO ()
-saveSchedule sch = do
-  schTable <- readIORef sch
-  BL.writeFile schedulePath $ serialise schTable
-
-readSchedule :: IO (Maybe Schedule)
-readSchedule = do
-  raw <- fromRight BS.empty <$> (try (BS.readFile schedulePath) :: IO (Either SomeException BS.ByteString))
+readTaskList :: IO (Maybe (TaskListRef))
+readTaskList = do
+  raw <- fromRight BS.empty <$> (try (BS.readFile taskListPath) :: IO (Either SomeException BS.ByteString))
   case deserialiseOrFail (BL.fromStrict raw) of
     Right x  -> Just <$> newIORef x
     Left err -> logErr "reading schedule from local file" (show err) >> pure Nothing
 
-data Target = User Integer | Group Integer
-  deriving (Generic, Eq, Show)
-instance Serialise Target

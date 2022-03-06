@@ -9,7 +9,7 @@ import           Data.Mirai                       ( getPlainText,
                                                     getChatType,
                                                     transUpd2SendMsgT,
                                                     transUpd2SendMsgPQ, getMessageTime, getGroupId, getUserId )
-import           AutoReply.HandleEnv              ( HandleEnv(update, connection, schedule) )
+import           AutoReply.HandleEnv
 import           AutoReply.Misc                   ( trimT, trimT')
 import           Data.Monads                      ( ReaderT, MonadTrans(lift), asks )
 import           Data.Maybe                       ( fromMaybe, fromJust )
@@ -19,8 +19,8 @@ import qualified Data.ByteString            as BS
 import qualified Data.Text.IO               as T
 import           Data.ByteString.Base64           ( encodeBase64 )
 import           Data.Time.Clock.POSIX            ( getPOSIXTime)
-import           Data.Schedule                    ( scheduleFuncMap, Target (Group, User), addSchedule, saveSchedule, rmSchedule, Schedule)
-import           Data.IORef                       ( readIORef)
+import           Data.Schedule
+import           Data.IORef
 import           Util.Log                         ( logWT, LogTag(Info, Debug, Error) )
 import           Util.Misc                        ( showT )
 import           Control.Exception
@@ -82,41 +82,57 @@ searchGoogleHdl = do
   where
     getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
 
-_addOrRemoveSchedule :: (Target -> String -> Schedule -> IO (Either String ()))
+_addOrRemoveSchedule :: (Target -> TaskListRef -> IO (Either String ()))
                             -> ReaderT HandleEnv IO ()
 _addOrRemoveSchedule f = do
   upd <- asks update
   let msgTxt = fromMaybe "" (getPlainText upd)
-      funcName = getText msgTxt
   case (getGroupId upd, getUserId upd) of
     (Nothing, Nothing)  -> replyQ "unable to fetch group id or user id"
     (Nothing, Just uid) -> do
-            schRef <- asks schedule
-            rst <- lift $ f (User uid) (T.unpack funcName) schRef
+            taskListRef <- asks taskList
+            rst <- lift $ f (User uid) taskListRef
             case rst of
-              Right () -> replyQ "success" >> lift (saveSchedule schRef)
+              Right () -> replyQ "success" >> lift (saveTaskList taskListRef)
               Left err -> replyQ $ T.pack err
     (Just gid, _) -> do
-            schRef <- asks schedule
-            rst <- lift $ f (Group gid) (T.unpack funcName) schRef
+            taskListRef <- asks taskList
+            rst <- lift $ f (Group gid) taskListRef
             case rst of
-              Right () -> replyQ "success" >> lift (saveSchedule schRef)
+              Right () -> replyQ "success" >> lift (saveTaskList taskListRef)
               Left err -> replyQ $ T.pack err
   pure ()
   where
     getText txt = trimT' " \n" $ T.dropWhile (== ' ') $ T.dropWhile (/= ' ') txt
 
 addScheduleHdl :: ReaderT HandleEnv IO ()
-addScheduleHdl = _addOrRemoveSchedule addSchedule
+addScheduleHdl = do
+  upd <- asks update
+  let words' = Prelude.filter (/="") $ T.split (==' ') $ fromMaybe "" (getPlainText upd)
+  if length words' /= 7
+      then replyQ "invalid argument number, expected 7"
+      else do
+        let funcName = words' !! 1
+            timeInfo = parseTimeInfo $ T.unwords $ Prelude.drop 2 words'
+        case timeInfo of
+          Left err -> replyQ $ "error time pattern: " <> showT err
+          Right timeInfo' -> _addOrRemoveSchedule (addScheduledTask timeInfo' (T.unpack funcName))
+  where
+    getText txt = trimT' " \n" $ T.dropWhile (== ' ') $ T.dropWhile (/= ' ') txt
 
 rmScheduleHdl :: ReaderT HandleEnv IO ()
-rmScheduleHdl = _addOrRemoveSchedule rmSchedule
+rmScheduleHdl = do
+  upd <- asks update
+  let funcName = getText $ fromMaybe "" (getPlainText upd)     
+  _addOrRemoveSchedule (rmScheduledTask (T.unpack funcName))
+  where
+    getText txt = trimT' " \n" $ T.dropWhile (== ' ') $ T.dropWhile (/= ' ') txt
 
 getScheduleHdl :: ReaderT HandleEnv IO ()
 getScheduleHdl = do
-  schRef <- asks schedule
-  sche <- lift $ readIORef schRef
-  reply (showT sche)
+  taskListRef <- asks taskList
+  taskList <- lift $ readIORef taskListRef
+  reply (showT taskList)
 
 getWeatherHdl :: ReaderT HandleEnv IO ()
 getWeatherHdl = do
@@ -125,13 +141,15 @@ getWeatherHdl = do
     Just x -> reply x
     _ -> reply "未来一周无雨。"
   ret <- lift $ write7DayScreenshot
-  lift $ logWT Info $ "getting weather screenshot"
+  lift $ logWT Info $ "[getWeatherHdl] getting weather screenshot"
   case ret of
-    False -> replyQ "从网络获取天气图像失败。"
+    False -> do
+      lift $ logWT Error $ "[getWeatherHdl] getting screenshot failed"
+      replyQ "从网络获取天气图像失败。"
     True -> do
-      picContent <- lift $ catch ( encodeBase64 <$> BS.readFile "screenshot.png") (\x ->  ((logWT Error $ "error reading screenshot.png" <> show (x::SomeException)) >> pure ""))
+      picContent <- lift $ catch ( encodeBase64 <$> BS.readFile "screenshot.png") (\x ->  ((logWT Error $ "[getWeatherHdl] error reading screenshot.png" <> show (x::SomeException)) >> pure ""))
       case picContent of
-        "" -> replyQ "读取天气图像文件失败。"
+        "" -> replyQ "读取本地天气图像文件失败。"
         _  -> replyPicBase64 "" picContent
 
 

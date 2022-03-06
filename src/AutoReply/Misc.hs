@@ -24,7 +24,7 @@ trimT :: Text -> Text
 trimT = trimT' ignore
   where
     ignore :: Text
-    ignore = " ,./?!:;'~`()-" <>
+    ignore = " ,./?!:;~`()-" <>
                "，。、’；：～！？（）" <>
                "的吧了呀也哪呢阿哈呗啊啦哩咧哇耶哉罢呐咯嘛噢呕哟呦"
 

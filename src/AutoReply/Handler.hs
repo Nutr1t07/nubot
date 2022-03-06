@@ -17,7 +17,7 @@ import Data.Mirai
       storeMsg,
       isMessage,
       getPlainText, isMessage, getUserRemark, getGroupName  )
-import Data.Schedule (Schedule)
+import Data.Schedule
 import Type.Mirai.Update
     ( Sender(sdr_id), MessageUpdate(updm_sender), Update(MUpdate), Update )
 import AutoReply.MsgHandle.Private ( stateHandler, incStage )
@@ -29,10 +29,10 @@ import AutoReply.HandleEnv
 import Data.Maybe ( fromMaybe, fromJust )
 import Util.Log (logWT, LogTag (Info), logWT'T)
 import Util.Misc (showT)
+import Data.IORef 
 
-
-mainHandler :: Int -> TaskQueue -> UserGroup -> Schedule -> RepliedTable -> Update -> Connection -> IO ()
-mainHandler selfId taskQueue userGrp schedule replyTable upd conn = flip runReaderT env $ do
+mainHandler :: Int -> TaskQueue -> UserGroup -> TaskListRef -> RepliedTable -> Update -> Connection -> IO ()
+mainHandler selfId taskQueue userGrp taskList replyTable upd conn = flip runReaderT env $ do
   lift $ storeMsg upd
   case () of
     _ 
@@ -59,7 +59,7 @@ mainHandler selfId taskQueue userGrp schedule replyTable upd conn = flip runRead
 
       | otherwise -> pure ()
   where
-    env = HandleEnv conn upd taskQueue replyTable userGrp schedule selfId
+    env = HandleEnv conn upd taskQueue replyTable userGrp taskList selfId
 
 
 

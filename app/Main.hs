@@ -30,12 +30,12 @@ main = do
     repliedTable <- emptyRepliedTable
     runConn (fromJust cfg)
       (mainHandler (mirai_qq_id $ fromJust cfg) taskQueue userGroup schedule repliedTable)
-      (runSchedule schedule)
+      (runScheduledTask schedule)
 
-getSchedule :: IO Schedule
+getSchedule :: IO TaskListRef
 getSchedule = do
-  sch <- readSchedule  -- read from local file
-  maybe emptySchedule pure sch
+  taskListRef <- readTaskList  -- read from local file
+  maybe emptyTaskList pure taskListRef
 
 getUserGroup :: IO UserGroup
 getUserGroup = do
