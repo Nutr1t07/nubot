@@ -51,7 +51,7 @@ pop :: Queue a -> (Maybe a, Queue a)
 pop x@(Queue [] []) = (Nothing, x)
 pop (Queue [] xs) = let rxs = reverse xs in
     (Just (head rxs), Queue (tail rxs) [])
-pop (Queue xs ys) = (Just (head xs), Queue (tail xs) ys)    
+pop (Queue xs ys) = (Just (head xs), Queue (tail xs) ys)
 
 empty :: Queue a -> Bool
 empty (Queue [] []) = True

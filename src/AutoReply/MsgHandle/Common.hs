@@ -123,7 +123,7 @@ addScheduleHdl = do
 rmScheduleHdl :: ReaderT HandleEnv IO ()
 rmScheduleHdl = do
   upd <- asks update
-  let funcName = getText $ fromMaybe "" (getPlainText upd)     
+  let funcName = getText $ fromMaybe "" (getPlainText upd)
   _addOrRemoveSchedule (rmScheduledTask (T.unpack funcName))
   where
     getText txt = trimT' " \n" $ T.dropWhile (== ' ') $ T.dropWhile (/= ' ') txt

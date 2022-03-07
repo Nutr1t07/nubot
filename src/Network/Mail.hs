@@ -21,7 +21,7 @@ sendUpdateToEmail :: [Update] -> IO ()
 sendUpdateToEmail [] = pure ()
 sendUpdateToEmail upd@(head_upd:_) = sendMailWithLoginSTARTTLS' "smtp.office365.com" 587 "nutr1t07@outlook.com" "233Microsoft" mail
   where mail =
-          simpleMail from [to] [] [] 
+          simpleMail from [to] [] []
                      ("[Bot] messages from [" <> name <> "]")
                      [ plainPart mailContent ]
         mailContent = "from: " <> TL.fromStrict senderInfo <> "\n\n"
@@ -30,7 +30,7 @@ sendUpdateToEmail upd@(head_upd:_) = sendMailWithLoginSTARTTLS' "smtp.office365.
         text = mconcat $ genText (reverse upd)
         genText = fmap (\x -> "  " <> T.pack (show $ fromMaybe 0 $ getMessageTime x) <> "> "
                                <> fromMaybe "" (getText x) <> "\n")
-        
+
         senderInfo = name <> " "  <> T.pack (maybe  "(No Id)" show (getUserId head_upd))
         remark = getUserRemark head_upd
         nick = getUserNick head_upd

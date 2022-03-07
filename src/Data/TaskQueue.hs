@@ -8,7 +8,7 @@ data TaskQueue = TaskQueue {
     queue :: QueueIO (IO ())
   , isRunning :: IORef Bool
   , onFinishedFunc :: IO ()
-} 
+}
 
 emptyTaskQueue :: IO () -> IO TaskQueue
 emptyTaskQueue f = do
@@ -31,4 +31,4 @@ performTasks taskQueue = do
   popItem <- popIO realQueue
   case popItem of
     Just f -> f >> performTasks taskQueue
-    Nothing -> onFinishedFunc taskQueue >> writeIORef (isRunning taskQueue) False 
+    Nothing -> onFinishedFunc taskQueue >> writeIORef (isRunning taskQueue) False

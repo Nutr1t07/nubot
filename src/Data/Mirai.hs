@@ -86,7 +86,7 @@ transUpd2SendMsgT upd@(MUpdate MessageUpdate{..}) txt =
                   Just Friend -> Just $ SendMsg (getUserId upd) Nothing Nothing []
                   Nothing -> Nothing in
   (\x -> RSendMsg $ x {sm_messageChain = (mkMessageChainT txt)}) <$> initMsg
-transUpd2SendMsgT upd@(EUpdate EventUpdate{..}) txt 
+transUpd2SendMsgT upd@(EUpdate EventUpdate{..}) txt
  | upde_type == "BotInvitedJoinGroupRequestEvent" =
                   Just $ RSendMsg $ SendMsg Nothing (getGroupId upd) Nothing (mkMessageChainT txt)
  | upde_type == "NewFriendRequestEvent" =
@@ -104,7 +104,7 @@ mkMessageChainT txt = [(emptyChainMessage "Plain") {cm_text = Just txt}]
 mkMessageChainTP :: Text -> [Text] -> [ChainMessage]
 mkMessageChainTP txt urls = ((emptyChainMessage "Plain") {cm_text = Just txt}) :
   ((\url -> (emptyChainMessage "Image") {cm_url = Just url}) <$> urls)
-    
+
 
 transUpd2SendMsgTQ :: Update -> Text -> Maybe RequestContent
 transUpd2SendMsgTQ upd@(MUpdate MessageUpdate{..}) txt = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> transUpd2SendMsgT upd txt
@@ -164,7 +164,7 @@ getImgUrls' (MUpdate MessageUpdate{..}) = do
   storedMsg <- catMaybes <$> traverse fetchMsg quoteId
   let urls = foldMap message_image_urls storedMsg
   pure $ urls <> directUrls
-  where 
+  where
     directUrls    = getUrls updm_messageChain
     getUrls chain = map (fromJust . cm_url) $ filter (\x -> cm_type x == "Image") chain
     quoteId       = map (fromJust . cm_id) $ filter (\x -> cm_type x == "Quote") updm_messageChain
@@ -235,7 +235,7 @@ instance FromRow StoreMsg where
       <*> field
       <*> field
    where
-     
+
     splitOn _ [] = []
     splitOn c str =
       let x = takeWhile (/= c) str in x : splitOn c (drop (length x + 1) str)

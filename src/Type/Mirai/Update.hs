@@ -18,7 +18,7 @@ data WebsocketWrapper = WebsocketWrapper {
 instance FromJSON WebsocketWrapper where
   parseJSON = dropParseJSON 5
 
-data Update = MUpdate MessageUpdate | EUpdate EventUpdate | SUpdate SyncUpdate 
+data Update = MUpdate MessageUpdate | EUpdate EventUpdate | SUpdate SyncUpdate
   deriving (Show, Generic)
 instance Serialise Update
 instance FromJSON Update where
@@ -60,7 +60,7 @@ instance FromJSON EventUpdate where
 
 data Sender = Sender {
     sdr_id :: Integer
-    
+
     -- friend or stranger
   , sdr_nickname :: Maybe Text
   , sdr_remark   :: Maybe Text

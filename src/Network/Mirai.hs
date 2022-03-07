@@ -25,7 +25,7 @@ type Connection = WS.Connection
 runConn :: Config -> (Update -> Connection -> IO ()) -> (Connection -> IO ()) -> IO ()
 runConn Config{..} f prepareAct = WS.runClient ws_addr ws_port path app
   where
-      path = "/all?verifyKey=" <> mirai_verify_key 
+      path = "/all?verifyKey=" <> mirai_verify_key
                   <> "&qq="    <> show mirai_qq_id
 
       app conn = do

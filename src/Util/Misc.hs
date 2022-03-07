@@ -86,5 +86,5 @@ breakOn needle (x:xs) = Arrow.first (x:) $ breakOn needle xs
 
 breakOnEnd :: Eq a => [a] -> [a] -> ([a], [a])
 breakOnEnd needle haystack = both reverse $ Tup.swap $ breakOn (reverse needle) (reverse haystack)
-  where 
+  where
     both f (x,y) = (f x, f y)

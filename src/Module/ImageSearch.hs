@@ -168,6 +168,6 @@ getSearchUrls imgUrl = runEitherT $ do
       , "Yandex> " <> yandexHost <> imgUrl
       ]
  where
-  
+
   yandexHost =
     "https://yandex.com/images/search?source=collections&rpt=imageview&url="

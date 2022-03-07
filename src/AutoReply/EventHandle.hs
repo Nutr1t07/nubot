@@ -48,10 +48,10 @@ _joinGroupHandler = do
     let (EUpdate upde) = upd
     let reply txt = sendMessage Group (connection env) (transUpd2SendMsgT upd txt)
     let resp = mkGroupEventResp upd 0
-    logWT Info ("[_joinGroupHandler] being invited to group" 
+    logWT Info ("[_joinGroupHandler] being invited to group"
         <> show (getGroupId upd))
     sendCommand "resp_botInvitedJoinGroupRequestEvent" (connection env) resp
-    reply $ "事件ID" <> showT (upde_fromId upde) 
+    reply $ "事件ID" <> showT (upde_fromId upde)
       <> "已受理，邀请人:" <> showT (getUserId upd)
     pure ()
 
@@ -63,7 +63,7 @@ _memberJoinHandler = do
     let (EUpdate upde) = upd
     let reply txt = sendMessage Group (connection env) (transUpd2SendMsgT upd txt)
     let resp = mkGroupEventResp upd 0
-    logWT Info ("[_memberJoinHandler] new member requests to join a group" 
+    logWT Info ("[_memberJoinHandler] new member requests to join a group"
       <> show (getGroupId upd))
     let id'' = fromMaybe 0 $ upde_fromId upde
         nick'' = fromMaybe "null" $ upde_nick upde

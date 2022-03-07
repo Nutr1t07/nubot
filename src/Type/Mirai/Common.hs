@@ -16,12 +16,12 @@ emptyChainMessage t = ChainMessage t Nothing Nothing Nothing Nothing Nothing Not
 
 data ChainMessage = ChainMessage {
     cm_type     :: Text
-    
+
   -- source, file
   , cm_id       :: Maybe Integer
 
   -- source
-  , cm_time     :: Maybe Integer 
+  , cm_time     :: Maybe Integer
 
   -- plain
   , cm_text     :: Maybe Text

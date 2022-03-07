@@ -48,7 +48,7 @@ getHolidayText = do
 
 getHoliday :: String -> IO (Maybe Holiday)
 getHoliday date = do
-  r <- Wreq.getWith opts  "http://api.tianapi.com/jiejiari/index" 
+  r <- Wreq.getWith opts  "http://api.tianapi.com/jiejiari/index"
   let rst = eitherDecode (r ^. responseBody)
   case rst of
     Left err -> logWT Error ("parsing holiday failed:" <> err) >> pure Nothing

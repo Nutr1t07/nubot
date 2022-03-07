@@ -72,18 +72,18 @@ fetchUser' grp userid' = do
   grp' <- readIORef grp
   pure $ findFirst grp' userid'
   where
-    findFirst [] _ = Nothing 
+    findFirst [] _ = Nothing
     findFirst (usr:usrs) targetId =
       if userId usr == targetId
-        then Just usr 
+        then Just usr
         else findFirst usrs targetId
 
 
 
 data User = User {
-    userId      :: Integer 
+    userId      :: Integer
   , state       :: State
-  , stage       :: Integer 
+  , stage       :: Integer
   , recordedMsg :: [Update]
   , remark      :: Text
   , flag        :: [Flag]
@@ -100,7 +100,7 @@ data State = Greeting | Recording | Idle | Searching
 instance Serialise State
 
 type RepliedTable = IORef [(UserID, [Text])]
-type UserID = Integer 
+type UserID = Integer
 
 emptyRepliedTable :: IO RepliedTable
 emptyRepliedTable = newIORef []

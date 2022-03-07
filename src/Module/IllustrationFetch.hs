@@ -50,5 +50,5 @@ fetchYandeRe24h = do
       pure $ ( "https://files.yande.re/sample/" <> )
            . ( <> ".re.jpg")
            . ( T.takeWhile (/='.') )
-           . ( T.drop 1 . T.dropWhile (/='/') ) 
+           . ( T.drop 1 . T.dropWhile (/='/') )
            . toStrict . decodeUtf8 <$> urlList

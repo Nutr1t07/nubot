@@ -16,7 +16,7 @@ beginWithT t target = target == T.take (T.length target) t
 
 trimT' :: Text -> Text -> Text
 trimT' ignore = trimEnd ignore . trimHead ignore
-    
+
 elemT :: Char -> Text -> Bool
 elemT c = T.any (==c)
 

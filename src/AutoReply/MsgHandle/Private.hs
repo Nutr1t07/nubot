@@ -8,7 +8,7 @@ import Data.Mirai
       transUpd2SendMsgTQ,
       getChatType,
       transUpd2SendMsgT )
-import Network.Mirai ( Connection, sendMessage ) 
+import Network.Mirai ( Connection, sendMessage )
 import Type.Mirai.Update
     ( Sender(sdr_remark), MessageUpdate(updm_sender), Update(MUpdate) )
 import Control.Monad ( when, void )
@@ -91,12 +91,12 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
         | msgTxtElem ["追加", "添加"] -> do
             replyQ "请继续发送需要记录的消息。输入『结束』以退出。"
             pure (jmpStage 0 usr)
-        | snd (T.breakOn "编辑" (trimT msgTxt)) /= T.empty -> do 
+        | snd (T.breakOn "编辑" (trimT msgTxt)) /= T.empty -> do
             let trimmedTxt = trimT msgTxt
             if trimmedTxt == "编辑"
               then replyQ "请指定上述记录的消息编号。输入『取消』以退出。" >> pure usr
               else do
-                let id' = fst $ fromRight (-1, T.empty) $ decimal $ 
+                let id' = fst $ fromRight (-1, T.empty) $ decimal $
                             T.takeWhile isDigit $ T.dropWhile (not . isDigit) trimmedTxt
                 if id' < 1
                   then do
@@ -115,7 +115,7 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
             pure (jmpStage 1 usr)
           | otherwise -> do
               let trimmedTxt = trimT msgTxt
-                  id' = fst $ fromRight (-1, T.empty) $ decimal $ 
+                  id' = fst $ fromRight (-1, T.empty) $ decimal $
                           T.takeWhile isDigit $ T.dropWhile (not . isDigit) trimmedTxt
               if id' < 1
                 then do
@@ -202,7 +202,7 @@ stateHandler usr conn upd@(MUpdate updm) tb = case state usr of
     msgTxtEqTo = equalT msgTxt
     msgTxtElem = elemTs msgTxt
 
-    reply' = sendMessage (fromJust $ getChatType upd) conn 
+    reply' = sendMessage (fromJust $ getChatType upd) conn
     reply  txt = reply' (transUpd2SendMsgT upd txt)
     replyQ txt = reply' (transUpd2SendMsgTQ upd txt)
     replyOnce  = replyOnce' reply
