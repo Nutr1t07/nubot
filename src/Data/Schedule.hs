@@ -24,23 +24,27 @@ import           Type.Mirai.Common              ( ChainMessage(ChainMessage))
 import           Type.Mirai.Request
 import           Module.Holiday                 ( getHolidayText_out)
 import           Module.IllustrationFetch       ( fetchYandeRe24h_out )
+import           Module.Weather                 ( getRainyDay_out )
 import           Util.Log                       ( logErr )
 import           Util.Misc                      ( showT )
-
-type FuncName = String
 
 type TaskListRef = IORef TaskList
 
 
-data Target = User Integer | Group Integer
-  deriving (Generic, Eq, Show)
-instance Serialise Target
-
-type Microsecond = Int
-oneMin :: Microsecond
+-- in microsecond
+oneMin :: Int
 oneMin = 60000000
 
 
+getFunc :: String -> IO [[ChainMessage]]
+getFunc funcName = case lookup funcName funcMap of
+  Just f -> f
+  _ -> pure []
+
+funcMap :: [(String, IO [[ChainMessage]])]
+funcMap = [ ("getHolidayText",  getHolidayText_out)
+          , ("getRainyDay", getRainyDay_out)
+          , ("fetchYandeRe24h", fetchYandeRe24h_out) ]
 
 ---------------------------------------------------------------------------------------------------
 -- Task
@@ -56,6 +60,76 @@ data Task = Task {
 } deriving (Generic, Show)
 instance Serialise Task
 
+data Target = User Integer | Group Integer
+  deriving (Generic, Eq, Show)
+instance Serialise Target
+
+runScheduledTask :: TaskListRef -> Connection -> IO a
+runScheduledTask taskRef conn = forever . void $ ((try $ do
+          let singleRun (Task funcName timeInfo target') = do
+                runFlag <- checkTimeSatisfied timeInfo
+                if not runFlag
+                  then pure []
+                  else do rst <- getFunc funcName
+                          sequence $ (sendTarget conn) <$> rst <*> pure target'
+          (TaskList tasks) <- readIORef taskRef
+          traverse_ singleRun tasks
+          threadDelay oneMin
+       ) :: IO (Either SomeException ()))
+  where
+    sendTarget conn cm (User uid)  = sendMessage CT.Friend conn (Just . RSendMsg $ defSendMsg { sm_messageChain = cm, sm_qq = Just uid })
+    sendTarget conn cm (Group gid) = sendMessage CT.Group  conn (Just . RSendMsg $ defSendMsg { sm_messageChain = cm, sm_group = Just gid })
+
+rmScheduledTask :: String -> Target -> TaskListRef -> IO (Either String ())
+rmScheduledTask funcName t taskListRef = do
+  case lookup funcName funcMap of
+    Nothing -> pure (Left "not found")
+    Just x -> do
+      (TaskList taskList) <- readIORef taskListRef
+      Right <$> writeIORef taskListRef (TaskList $ removeIt taskList)
+
+  where
+    removeIt [] = []
+    removeIt (x:xs) = if target x == t && procName x == funcName
+                         then xs
+                         else x:(removeIt xs)
+
+addScheduledTask :: TimeInfo -> String -> Target -> TaskListRef -> IO (Either String ())
+addScheduledTask timeInfo funcName t taskListRef = do
+  case lookup funcName funcMap of
+    Nothing -> pure (Left "not found")
+    Just _ -> do
+      (TaskList taskList) <- readIORef taskListRef
+      Right <$> writeIORef taskListRef (TaskList $ addIt taskList)
+  where
+    addIt [] = [Task funcName timeInfo t]
+    addIt xss@(x:xs) = if target x /= t || procName x /= funcName
+                          then x : addIt xs
+                          else xss
+
+
+readTaskList :: IO (Maybe (TaskListRef))
+readTaskList = do
+  raw <- fromRight BS.empty <$> (try (BS.readFile taskListPath) :: IO (Either SomeException BS.ByteString))
+  case deserialiseOrFail (BL.fromStrict raw) of
+    Right x  -> Just <$> newIORef x
+    Left err -> logErr "reading scheduled tasks from local file" (show err) >> pure Nothing
+
+emptyTaskList :: IO TaskListRef
+emptyTaskList = newIORef $ TaskList []
+
+saveTaskList :: TaskListRef -> IO ()
+saveTaskList taskListRef = do
+  schTable <- readIORef taskListRef
+  BL.writeFile taskListPath $ serialise schTable
+
+taskListPath :: [Char]
+taskListPath = "taskList.dat"
+
+
+---------------------------------------------------------------------------------------------------
+-- TimeInfo
+
 data TimeInfo = TimeInfo {
     tMin       :: TimeField
   , tHour      :: TimeField
@@ -69,7 +143,7 @@ data TimeField = MatchAll | MatchSome [BaseField]
   deriving (Generic, Show)
 instance Serialise TimeField
 
-data BaseField = SingleField Int | RangeField Int Int 
+data BaseField = SingleField Int | RangeField Int Int
   deriving (Generic, Show)
 instance Serialise BaseField
 
@@ -83,7 +157,7 @@ checkTimeSatisfied TimeInfo{..} = do
 
     pure $ all id [ checkTimeField cMin tMin
          , checkTimeField cHour tHour
-         , checkTimeField cDayOfMo tDayOfMo 
+         , checkTimeField cDayOfMo tDayOfMo
          , checkTimeField cMonth tMonth
          , checkTimeField cDayOfWeek tDayOfWeek]
 
@@ -99,7 +173,7 @@ parseTimeInfo str =
   let raw = split' ' ' str in
   if length raw /= 5
     then Left "argument length exceeded, expected 5"
-    else 
+    else
       fmap promote $ sequence =<< fmap (zipWith (\f x -> f x)
               [guardTF 0 59, guardTF 0 23, guardTF 1 31, guardTF 1 12, guardTF 1 7])
               (traverse parseSingle raw)
@@ -126,88 +200,12 @@ parseTimeInfo str =
 
     guardTF min max xss@(MatchSome xs) = MatchSome <$> traverse (guardBF min max) xs
     guardTF _ _ MatchAll = Right MatchAll
-    
-    guardBF min max field@(SingleField x) = if min <= x && max >= x then Right field else Left $ show field <> " out of range [" <> show min <> ", " <> show max <> "]"
-    guardBF min max field@(RangeField l r) 
-      | l == r    = Left "RangeField duplicate"
-      | l > r     = guardBF min max (RangeField r l) 
-      | otherwise = if min <= l && max >= r then Right field else Left $ show field <> " out of range [" <> show min <> ", " <> show max <> "]"
 
+    guardBF min max field@(SingleField x) = if min <= x && max >= x then Right field else Left $ show field <> " out of range [" <> show min <> ", " <> show max <> "]"
+    guardBF min max field@(RangeField l r)
+      | l == r    = Left "RangeField duplicate"
+      | l > r     = guardBF min max (RangeField r l)
+      | otherwise = if min <= l && max >= r then Right field else Left $ show field <> " out of range [" <> show min <> ", " <> show max <> "]"
 ---------------------------------------------------------------------------------------------------
 
-
-sendTarget :: Connection -> [ChainMessage] -> Target -> IO ()
-sendTarget conn cm (User uid)  = sendMessage CT.Friend conn (Just . RSendMsg $ defSendMsg { sm_messageChain = cm, sm_qq = Just uid })
-sendTarget conn cm (Group gid) = sendMessage CT.Group  conn (Just . RSendMsg $ defSendMsg { sm_messageChain = cm, sm_group = Just gid })
-
-
-runScheduledTask :: TaskListRef -> Connection -> IO a
-runScheduledTask taskRef conn = forever . void $ ((try $ do
-          let singleRun (Task funcName timeInfo target') = do
-                runFlag <- checkTimeSatisfied timeInfo
-                if not runFlag
-                  then pure []
-                  else do rst <- getFunc funcName
-                          sequence $ (sendTarget conn) <$> rst <*> pure target'
-          (TaskList tasks) <- readIORef taskRef
-          traverse_ singleRun tasks
-          threadDelay oneMin
-       ) :: IO (Either SomeException ()))
-
-getFunc :: String -> IO [[ChainMessage]]
-getFunc funcName = case lookup funcName funcMap of
-  Just f -> f
-  _ -> pure []
-
-
-rmScheduledTask :: String -> Target -> TaskListRef -> IO (Either String ())
-rmScheduledTask funcName t taskListRef = do
-  case lookup funcName funcMap of
-    Nothing -> pure (Left "not found")
-    Just x -> do
-      (TaskList taskList) <- readIORef taskListRef
-      Right <$> writeIORef taskListRef (TaskList $ removeIt taskList)
-
-  where
-    removeIt [] = []
-    removeIt (x:xs) = if target x == t && procName x == funcName
-                         then xs
-                         else x:(removeIt xs)
-
-
-addScheduledTask :: TimeInfo -> String -> Target -> TaskListRef -> IO (Either String ())
-addScheduledTask timeInfo funcName t taskListRef = do
-  case lookup funcName funcMap of
-    Nothing -> pure (Left "not found")
-    Just _ -> do
-      (TaskList taskList) <- readIORef taskListRef
-      Right <$> writeIORef taskListRef (TaskList $ addIt taskList)
-  where
-    addIt [] = [Task funcName timeInfo t]
-    addIt xss@(x:xs) = if target x /= t || procName x /= funcName
-                          then x : addIt xs
-                          else xss
-
-
-funcMap :: [(String, IO [[ChainMessage]])]
-funcMap = [ ("getHolidayText",  getHolidayText_out)
-          , ("fetchYandeRe24h", fetchYandeRe24h_out) ]
-
-taskListPath :: [Char]
-taskListPath = "taskList.dat"
-
-emptyTaskList :: IO TaskListRef
-emptyTaskList = newIORef $ TaskList []
-
-saveTaskList :: TaskListRef -> IO ()
-saveTaskList taskListRef = do
-  schTable <- readIORef taskListRef
-  BL.writeFile taskListPath $ serialise schTable
-
-readTaskList :: IO (Maybe (TaskListRef))
-readTaskList = do
-  raw <- fromRight BS.empty <$> (try (BS.readFile taskListPath) :: IO (Either SomeException BS.ByteString))
-  case deserialiseOrFail (BL.fromStrict raw) of
-    Right x  -> Just <$> newIORef x
-    Left err -> logErr "reading schedule from local file" (show err) >> pure Nothing
 

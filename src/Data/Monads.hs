@@ -1,12 +1,11 @@
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes, QuantifiedConstraints #-}
 module Data.Monads where
 import Control.Monad (liftM)
 
 import Data.Bifunctor ( Bifunctor(first) )
 
 class (forall m. Monad m => Monad (t m)) => MonadTrans t where
-  lift :: Monad m => m a -> t m a 
+  lift :: Monad m => m a -> t m a
 
 -- ## EitherT
 newtype EitherT e m a = EitherT {
@@ -39,25 +38,6 @@ modErr f x = EitherT $ do
   case mx of
     Right x' -> pure $ pure x'
     Left err' -> pure $ Left $ f err'
-
--- 
--- class (forall m. Monad m => Monad (t m)) => MonadTrans t where
---   lift :: Monad m => m a -> t m a
--- 
--- 
--- newtype StateT s m a = StateT {
---   runStateT :: s -> m (a, s)
--- }
--- instance (Functor m) => Functor (StateT s m) where
---   fmap f (StateT x) = StateT (fmap (first f) . x)
--- 
--- instance (Applicative m) => Applicative (StateT s m) where
---   pure x = StateT (\s -> pure (x,s))
--- -- (StateT f) <*> (StateT x) = StateT (\s -> (f s) )
--- 
--- 
--- 
--- ## ReaderT
 
 ask :: Monad m => ReaderT r m r
 ask = ReaderT pure

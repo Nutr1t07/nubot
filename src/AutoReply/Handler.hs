@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module AutoReply.Handler where
-  
+
 import Data.TaskQueue (TaskQueue, addTask)
 import Data.User ( RepliedTable, UserGroup, replaceUser, fetchUser, User (state))
 import Network.Mirai ( Connection )
@@ -29,13 +29,13 @@ import AutoReply.HandleEnv
 import Data.Maybe ( fromMaybe, fromJust )
 import Util.Log (logWT, LogTag (Info), logWT'T)
 import Util.Misc (showT)
-import Data.IORef 
+import Data.IORef
 
 mainHandler :: Int -> TaskQueue -> UserGroup -> TaskListRef -> RepliedTable -> Update -> Connection -> IO ()
 mainHandler selfId taskQueue userGrp taskList replyTable upd conn = flip runReaderT env $ do
   lift $ storeMsg upd
   case () of
-    _ 
+    _
     --   | isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId ->
     --       lift $ addTask taskQueue $ (`runReaderT` env) _privMsgHandler
 
@@ -47,11 +47,11 @@ mainHandler selfId taskQueue userGrp taskList replyTable upd conn = flip runRead
 
       | isMessage upd ->
           _grpMsgHandler
-      
-      | isNewMemberEvent upd -> 
+
+      | isNewMemberEvent upd ->
           _memberJoinHandler
-      
-      | isInvitedToGroupEvent upd -> 
+
+      | isInvitedToGroupEvent upd ->
           _joinGroupHandler
 
       -- | isSyncUpdate upd ->
@@ -74,7 +74,7 @@ _privMsgHandler = do
     let (MUpdate updm) = upd
     usr <- fetchUser (userGroup env) (sdr_id $ updm_sender updm)
     logWT'T Info ("[_privMsgHandler] cmd received from "
-            <> fromMaybe "UNKNOWN" (getUserRemark upd) 
+            <> fromMaybe "UNKNOWN" (getUserRemark upd)
             <> "(" <> showT (state usr) <> ")"
             <> ": " <> fromMaybe "" (getPlainText upd))
     changedUsr <- stateHandler usr (connection env) upd (replyTable env)
@@ -88,12 +88,12 @@ _grpMsgHandler = do
       equal' = equalT msgTxt
       begin' = beginWithT msgTxt
   guard' (isMessage upd) $ case () of
-      _ | equal' "sp"     -> searchImageHdl
-        | equal' "ping"   -> pingHdl
+      _ | equal' "sp"      -> searchImageHdl
+        | equal' "ping"    -> pingHdl
         | equal' "weather" -> getWeatherHdl
-        | begin' "baidu'" -> searchBaiduHdl
+        | begin' "baidu'"  -> searchBaiduHdl
         | begin' "google'" -> searchGoogleHdl
         | begin' "addSchedule'" -> addScheduleHdl
-        | begin' "getSchedule'" -> getScheduleHdl
-        | begin' "rmSchedule'" -> rmScheduleHdl
+        | begin' "rmSchedule'"  -> rmScheduleHdl
+        | equal' "getSchedule'" -> getScheduleHdl
         | otherwise -> pure ()

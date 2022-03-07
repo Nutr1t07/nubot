@@ -21,15 +21,9 @@ import qualified Data.Text                     as T
 import           Data.Text.Lazy                 ( toStrict )
 import           Data.Text.Lazy.Encoding        ( decodeUtf8 )
 import qualified Network.Wreq                  as Wreq
-import Data.Maybe (fromMaybe)
-import Util.Misc as Misc
-    ( breakOnEnd, breakOn, searchBetweenBL, searchBetweenBL', encodeURI )
-import Util.Log ( logWT, LogTag(Info) )
-
-
-
-
-
+import           Data.Maybe                     (fromMaybe)
+import           Util.Misc                     as Misc           ( breakOnEnd, breakOn, searchBetweenBL, searchBetweenBL', encodeURI )
+import           Util.Log                       ( logWT, LogTag(Info) )
 
 getWords :: BL.ByteString -> [Text]
 getWords ""  = []
@@ -47,7 +41,7 @@ concatWord oStr = (mconcat . intersperse "\n\n") s
   addNextLine x xs =
     let a = strip x
     in  if T.last a == '。' then a : xs else (a <> head xs) : tail xs
-  
+
 runGoogleSearch :: Text -> IO (Maybe (Text, Text, Text))
 runGoogleSearch query = if query == T.empty
   then return Nothing
@@ -60,8 +54,8 @@ runGoogleSearch query = if query == T.empty
         , getAbstract ans)
  where
 
-  sbl a b c = fromMaybe "" $ searchBetweenBL a b c 
-  sbl' a b c = fromMaybe "" $ searchBetweenBL' a b c 
+  sbl a b c = fromMaybe "" $ searchBetweenBL a b c
+  sbl' a b c = fromMaybe "" $ searchBetweenBL' a b c
 
   getAbstract x = concatWord . getWords $ sbl
     "clamp:2\">"
@@ -107,7 +101,7 @@ runBaiduSearch query = if query == T.empty
         (middle, remain) = Misc.breakOn right x in
     oriLeft <> f middle <> remain
 
-  sbl a b c = fromMaybe "" $ searchBetweenBL a b c 
+  sbl a b c = fromMaybe "" $ searchBetweenBL a b c
 
   getAbstract x = concatWord . getWords $ sbl
     "abstract"
@@ -128,7 +122,7 @@ runBaiduSearch query = if query == T.empty
     "result c-container new-pmd"
     "</div><style>"
     x
-  
+
 baiduOpts query =  Wreq.defaults
       & Wreq.header "User-Agent" .~ ["Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:94.0) Gecko/20100101 Firefox/94.0"]
       & Wreq.header "Accept" .~ ["text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"]

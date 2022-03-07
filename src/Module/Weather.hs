@@ -8,21 +8,31 @@ import           Control.Lens                  ( (^.) )
 import qualified Data.Text          as T
 import           Data.Text                     ( Text )
 import           Data.Text.Encoding as T
-import           Data.List                     ( findIndices, intersperse )
+import           Data.List          as L       ( findIndices, intersperse )
 import           Data.Char                     ( ord )
 
 import           Util.Log
+
+import           Type.Mirai.Common  ( ChainMessage(ChainMessage) )
+import           Data.Mirai  ( mkMessageChainT )
+
+getRainyDay_out :: IO [[ChainMessage]]
+getRainyDay_out = do
+  rst <- getNextRainyDay
+  case rst of
+    Nothing -> pure []
+    Just x -> pure $ [mkMessageChainT x]
 
 getNextRainyDay :: IO (Maybe Text)
 getNextRainyDay = do
     raw <- (^. responseBody) <$> Wreq.get "https://weather.com/zh-CN/weather/tenday/l/23.285665,116.148000"
     let
         -- it's actually a 15-day forecast. and we only need 7 days.
-        weatherTypes = drop 1 $ take 15 $ searchAllBetweenBL' ">" "</span></div><div data-testid=\"P" raw
-        weatherDates = fmap transBL2TS $ drop 1 $ take 15 $ searchAllBetweenBL' ">" "</h2><d" raw
-        
+        weatherTypes = drop 1 $ take 8 $ searchAllBetweenBL' ">" "</span></div><div data-testid=\"P" raw
+        weatherDates = fmap transBL2TS $ drop 1 $ take 8 $ searchAllBetweenBL' ">" "</h2><d" raw
+
         rainPercents' = take 30 $ searchAllBetweenBL' ">" "</span></div><div c" raw
-        rainPercents  = transBL2TS <$> if length rainPercents' == 29
+        rainPercents  = take 14 $ transBL2TS <$> if length rainPercents' == 29
                            then drop 1 rainPercents'
                            else drop 2 rainPercents'
     let
@@ -33,13 +43,13 @@ getNextRainyDay = do
     case rainPcIndices of
         [] -> pure Nothing
         _  -> pure . Just $ (T.pack "未来降水可能出现于: \n") <>
-                T.unlines (fmap (\i -> 
+                  mconcat (intersperse "\n" (fmap (\i ->
                     weatherDates !! (div i 2)
                     <> ", "
                     <> (if mod i 2 == 0 then "日" else "夜")
                     <> ", "
                     <> (rainPercents !! i)
-                    ) rainPcIndices)
+                    ) rainPcIndices))
 
 
 write7DayScreenshot :: IO Bool
@@ -54,9 +64,9 @@ write7DayScreenshot = do
                   _ -> pure False
 
 callMogrifyCrop :: (Int, Int) -> (Int, Int) -> IO ExitCode
-callMogrifyCrop (width, height) (x, y) = 
+callMogrifyCrop (width, height) (x, y) =
   Turtle.proc "mogrify" args empty
-  where 
+  where
       args = [ "-crop"
              , showT width <> "x" <> showT height <> "+" <> showT x <> "+" <> showT y
              , "screenshot.png"]
@@ -64,7 +74,7 @@ callMogrifyCrop (width, height) (x, y) =
 callChromiumScreenshot :: (Int, Int) -> Text -> IO ExitCode
 callChromiumScreenshot (width, height) url =
   Turtle.proc "chromium" args empty
-  where 
+  where
       args = [ "--headless"
              , "--disable-gpu"
              , "--no-sandbox"

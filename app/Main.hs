@@ -25,15 +25,15 @@ main = do
   cfg <- readConfig
   when (isJust cfg) $ do
     userGroup <- getUserGroup
-    schedule <- getSchedule
+    scheduledTask <- getScheduledTask
     taskQueue <- emptyTaskQueue (saveUserGroup userGroup)
     repliedTable <- emptyRepliedTable
     runConn (fromJust cfg)
-      (mainHandler (mirai_qq_id $ fromJust cfg) taskQueue userGroup schedule repliedTable)
-      (runScheduledTask schedule)
+      (mainHandler (mirai_qq_id $ fromJust cfg) taskQueue userGroup scheduledTask repliedTable)
+      (runScheduledTask scheduledTask)
 
-getSchedule :: IO TaskListRef
-getSchedule = do
+getScheduledTask :: IO TaskListRef
+getScheduledTask = do
   taskListRef <- readTaskList  -- read from local file
   maybe emptyTaskList pure taskListRef
 
