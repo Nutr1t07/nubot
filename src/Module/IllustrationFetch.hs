@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Module.IllustrationFetch ( fetchYandeRe24h_out, fetchYandeRe24h ) where
+module Module.IllustrationFetch where
 
 import           Control.Lens                   ( (&)
                                                 , (.~)
@@ -43,9 +43,26 @@ fetchYandeRe24h_out = do
   let splitInto5Group xs = if length xs > 7 then (take 8 xs) : splitInto5Group(drop 8 xs) else [xs]
   pure [(mkMessageChainTP T.empty url ) | url <- splitInto5Group urls]
 
+
+fetchYandeReWeek_out :: IO [[ChainMessage]]
+fetchYandeReWeek_out = do
+  urls <- fetchYandeReWeek
+  let splitInto5Group xs = if length xs > 7 then (take 8 xs) : splitInto5Group(drop 8 xs) else [xs]
+  pure [(mkMessageChainTP T.empty url ) | url <- splitInto5Group urls]
+
+fetchYandeReWeek :: IO [Text]
+fetchYandeReWeek = do
+      resp <- (BL.drop 10000) . (^. Wreq.responseBody) <$> Wreq.get "https://yande.re/post/popular_by_week"
+      let urlList = take 40 $ searchAllBetweenBL "href=\"https://files.yande.re/" "\"" resp
+      pure $ ( "https://files.yande.re/sample/" <> )
+           . ( <> ".re.jpg")
+           . ( T.takeWhile (/='.') )
+           . ( T.drop 1 . T.dropWhile (/='/') )
+           . toStrict . decodeUtf8 <$> urlList
+
 fetchYandeRe24h :: IO [Text]
 fetchYandeRe24h = do
-      resp <- (BL.drop 45000) . (^. Wreq.responseBody) <$> Wreq.get "https://yande.re/post/popular_recent"
+      resp <- (BL.drop 10000) . (^. Wreq.responseBody) <$> Wreq.get "https://yande.re/post/popular_recent"
       let urlList = take 40 $ searchAllBetweenBL "href=\"https://files.yande.re/" "\"" resp
       pure $ ( "https://files.yande.re/sample/" <> )
            . ( <> ".re.jpg")

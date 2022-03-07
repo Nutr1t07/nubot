@@ -22,8 +22,8 @@ import           Data.Time.Calendar.WeekDate
 import qualified Type.Mirai.Common       as CT  ( ChatType(Group, Friend), ChainMessage(ChainMessage))
 import           Type.Mirai.Common              ( ChainMessage(ChainMessage))
 import           Type.Mirai.Request
-import           Module.Holiday                 ( getHolidayText_out)
-import           Module.IllustrationFetch       ( fetchYandeRe24h_out )
+import           Module.Holiday                 ( getHolidayText_out )
+import           Module.IllustrationFetch       ( fetchYandeRe24h_out, fetchYandeReWeek_out )
 import           Module.Weather                 ( getRainyDay_out )
 import           Util.Log                       ( logErr )
 import           Util.Misc                      ( showT )
@@ -44,7 +44,9 @@ getFunc funcName = case lookup funcName funcMap of
 funcMap :: [(String, IO [[ChainMessage]])]
 funcMap = [ ("getHolidayText",  getHolidayText_out)
           , ("getRainyDay", getRainyDay_out)
-          , ("fetchYandeRe24h", fetchYandeRe24h_out) ]
+          , ("fetchYandeRe24h", fetchYandeRe24h_out)
+          , ("fetchYandeReWeek", fetchYandeReWeek_out)
+          ]
 
 ---------------------------------------------------------------------------------------------------
 -- Task
