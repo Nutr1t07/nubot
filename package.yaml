@@ -30,6 +30,7 @@ dependencies:
 
 - turtle
 - base64
+- directory
 
 library:
   source-dirs: src

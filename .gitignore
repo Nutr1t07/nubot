@@ -4,3 +4,5 @@ result
 savedUser.dat
 config.json
 msgStore.db
+cache
+test.html

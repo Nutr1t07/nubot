@@ -1,17 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Module.Weather where
 
-import           Turtle
+import qualified Turtle
+import           Turtle                        ( ExitCode (ExitFailure, ExitSuccess) )
 import           Util.Misc                     ( showT, searchBetweenBL, searchAllBetweenBL, searchAllBetweenBL', isSubblOf, transBL2TS )
 import           Network.Wreq       as Wreq
 import           Control.Lens                  ( (^.) )
+import qualified Data.ByteString    as BS
 import qualified Data.Text          as T
 import           Data.Text                     ( Text )
 import           Data.Text.Encoding as T
 import           Data.List          as L       ( findIndices, intersperse )
 import           Data.Char                     ( ord )
-
+import           System.Directory
+import           Control.Exception
 import           Util.Log
+import           Util.Time
+import           Util.SystemCall
 
 import           Type.Mirai.Common  ( ChainMessage(ChainMessage) )
 import           Data.Mirai  ( mkMessageChainT )
@@ -81,32 +86,5 @@ getNextRainyDay = do
         _ -> [0,0,0,0,0,0,0]
 
 
-write7DayScreenshot :: IO Bool
-write7DayScreenshot = do
-    code <- callChromiumScreenshot (1280, 1700) "https://weather.com/zh-CN/weather/tenday/l/23.285665,116.148000"
-    case code of
-        ExitFailure err -> pure False
-        _ -> do
-            code' <- callMogrifyCrop (770,430) (73,585)
-            case code' of
-                  ExitSuccess -> pure True
-                  _ -> pure False
-
-callMogrifyCrop :: (Int, Int) -> (Int, Int) -> IO ExitCode
-callMogrifyCrop (width, height) (x, y) =
-  Turtle.proc "mogrify" args empty
-  where
-      args = [ "-crop"
-             , showT width <> "x" <> showT height <> "+" <> showT x <> "+" <> showT y
-             , "screenshot.png"]
-
-callChromiumScreenshot :: (Int, Int) -> Text -> IO ExitCode
-callChromiumScreenshot (width, height) url =
-  Turtle.proc "chromium" args empty
-  where
-      args = [ "--headless"
-             , "--disable-gpu"
-             , "--no-sandbox"
-             , "--screenshot"
-             , "--window-size=" <> showT width <> "," <> showT height
-             , url]
+get7DayScreenshot :: IO (Maybe Text)
+get7DayScreenshot = getScreenshot ((770,430), (73,585)) (1280, 1700) "https://weather.com/zh-CN/weather/tenday/l/23.285665,116.148000"

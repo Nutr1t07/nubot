@@ -1,8 +1,9 @@
 module Util.Time where
 
-import Data.Time ( formatTime, defaultTimeLocale, getZonedTime, zonedTimeToLocalTime )
-import Data.Time.Clock ( nominalDay )
-import Data.Time.LocalTime ( addLocalTime )
+import Data.Time
+import Data.Time.Clock
+import Data.Time.LocalTime
+import Data.Time.Clock.POSIX
 
 -- format like "%Y-%m-%d", https://hackage.haskell.org/package/time-1.13/docs/Data-Time-Format.html#v:formatTime
 getDate :: String -> IO String
@@ -13,3 +14,4 @@ getTomorrowDate :: String -> IO String
 getTomorrowDate format = do
   formatTime defaultTimeLocale format . addLocalTime nominalDay . zonedTimeToLocalTime <$> getZonedTime
 
+getPOSIXSec = nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds <$> getCurrentTime

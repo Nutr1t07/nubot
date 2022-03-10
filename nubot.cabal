@@ -49,6 +49,7 @@ library
       Util.Json
       Util.Log
       Util.Misc
+      Util.SystemCall
       Util.Time
   other-modules:
       Paths_nubot
@@ -59,6 +60,7 @@ library
     , base >=4.7 && <5
     , base64
     , bytestring
+    , directory
     , lens
     , mime-mail
     , network-uri
@@ -85,6 +87,7 @@ executable nubot-exe
     , base >=4.7 && <5
     , base64
     , bytestring
+    , directory
     , lens
     , mime-mail
     , network-uri
@@ -113,6 +116,7 @@ test-suite nubot-test
     , base >=4.7 && <5
     , base64
     , bytestring
+    , directory
     , lens
     , mime-mail
     , network-uri

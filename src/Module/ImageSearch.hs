@@ -31,6 +31,7 @@ import           Network.Wreq                  as Wreq
                                                 , proxy
                                                 , httpProxy, get
                                                 )
+import           Util.SystemCall
 import           Util.Log                       ( LogTag(Info, Debug)
                                                 , logWT, logWT'C8
                                                 )
@@ -101,7 +102,7 @@ getInfo sRst =
 
   (,) thumbnail $
   Misc.unlines $ catMaybes $  [Just "# SauceNAO"]
-    <> mkInfo "相似度" similarity
+    <> mkInfo "相似" similarity
     <> mkInfo "图源"  source
     <> mkInfo "标题"  title
     <> mkInfo "画师"  pixiv_mem
@@ -157,6 +158,11 @@ getAscii2dUrls imgUrl = do
   pure $ (,) <$> colorUrl <*> bovwUrl
   where fixUrl =  T.decodeUtf8 . BL.toStrict . ("https://ascii2d.net/search/" <>)
 
+
+getYandexScreenshot :: Text -> IO (Maybe Text)
+getYandexScreenshot url = getScreenshot ((1264, 1551), (0, 98)) (1280, 1700) $ searchUrl
+  where searchUrl = "https://yandex.com/images/search?source=collections&rpt=imageview&url=" <> url
+
 getSearchUrls :: Text -> IO (Either Text Text)
 getSearchUrls imgUrl = runEitherT $ do
     if imgUrl == T.empty then exitErr "无法获取图片地址。" else pure ()
@@ -167,7 +173,5 @@ getSearchUrls imgUrl = runEitherT $ do
       , "A2d特征> " <> snd (fromJust result)
       , "Yandex> " <> yandexHost <> imgUrl
       ]
- where
-
-  yandexHost =
-    "https://yandex.com/images/search?source=collections&rpt=imageview&url="
+  where
+    yandexHost = "https://yandex.com/images/search?source=collections&rpt=imageview&url="

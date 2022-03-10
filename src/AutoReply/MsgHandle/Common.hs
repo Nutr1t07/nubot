@@ -24,9 +24,9 @@ import           Data.IORef
 import           Util.Log                         ( logWT, LogTag(Info, Debug, Error) )
 import           Util.Misc                        ( showT )
 import           Control.Exception
-import           Module.ImageSearch               ( runSauceNAOSearch )
+import           Module.ImageSearch               ( runSauceNAOSearch, getYandexScreenshot )
 import           Module.WebSearch                 ( runBaiduSearch, runGoogleSearch )
-import           Module.Weather                   ( write7DayScreenshot, getNextRainyDay )
+import           Module.Weather                   ( get7DayScreenshot, getNextRainyDay )
 
 
 searchImageHdl :: ReaderT HandleEnv IO ()
@@ -41,7 +41,13 @@ searchImageHdl = do
   rst <- lift $ runSauceNAOSearch imgUrl
   case rst of
     Right (url, txt, Nothing) -> replyPicQ txt url
-    Right (url, txt, Just more) -> replyPicQ txt url >> replyQ more
+    Right (url, txt, Just more) -> do
+      replyPicQ txt url
+      replyQ more
+      imgBase64' <- lift $ getYandexScreenshot imgUrl
+      case imgBase64' of
+        Just x -> replyPicBase64 "# Yandex 网页搜索" x
+        _ -> pure ()
     Left err -> replyQ err
 
 pingHdl :: ReaderT HandleEnv IO ()
@@ -140,17 +146,12 @@ getWeatherHdl = do
   case txt of
     Just x -> reply x
     _ -> reply "未来一周无雨。"
-  ret <- lift $ write7DayScreenshot
-  lift $ logWT Info $ "[getWeatherHdl] getting weather screenshot"
-  case ret of
-    False -> do
+  pic <- lift $ get7DayScreenshot
+  case pic of
+    Nothing -> do
       lift $ logWT Error $ "[getWeatherHdl] getting screenshot failed"
-      replyQ "从网络获取天气图像失败。"
-    True -> do
-      picContent <- lift $ catch ( encodeBase64 <$> BS.readFile "screenshot.png") (\x ->  ((logWT Error $ "[getWeatherHdl] error reading screenshot.png" <> show (x::SomeException)) >> pure ""))
-      case picContent of
-        "" -> replyQ "读取本地天气图像文件失败。"
-        _  -> replyPicBase64 "" picContent
+      replyQ "获取天气图像失败。"
+    Just x -> replyPicBase64 "" x
 
 
 reply' f = do
