@@ -14,6 +14,7 @@ import           Data.IORef                     ( readIORef, IORef, newIORef, wr
 import qualified Data.ByteString.Lazy    as BL
 import qualified Data.ByteString         as BS
 import qualified Data.Text               as T
+import qualified Data.List               as L
 import qualified Data.Text.Read          as T
 import qualified Data.Bifunctor
 import           Data.Bifunctor                 ( second )
@@ -138,16 +139,24 @@ data TimeInfo = TimeInfo {
   , tDayOfMo   :: TimeField
   , tMonth     :: TimeField
   , tDayOfWeek :: TimeField
-} deriving (Generic, Show)
+} deriving (Generic)
 instance Serialise TimeInfo
+instance Show TimeInfo where
+  show TimeInfo{..} = mconcat $ L.intersperse " " $ show <$> [tMin, tHour, tDayOfMo, tMonth, tDayOfWeek]
 
 data TimeField = MatchAll | MatchSome [BaseField]
-  deriving (Generic, Show)
+  deriving (Generic)
 instance Serialise TimeField
+instance Show TimeField where
+  show MatchAll = "*"
+  show (MatchSome xs) = mconcat $ L.intersperse "," $ show <$> xs
 
 data BaseField = SingleField Int | RangeField Int Int
-  deriving (Generic, Show)
+  deriving (Generic)
 instance Serialise BaseField
+instance Show BaseField where
+  show (SingleField x) = show x
+  show (RangeField x y) = show x <> "-" <> show y
 
 checkTimeSatisfied :: TimeInfo -> IO Bool
 checkTimeSatisfied TimeInfo{..} = do

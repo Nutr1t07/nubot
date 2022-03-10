@@ -39,10 +39,29 @@ getNextRainyDay = do
         rainPcIndices = findIndices (\x -> T.length x == 4      -- '100%' has 4 characters
                                        || (T.length x == 3 && ((ord.T.head) x) > 50) -- any larger than '30%'
                                     ) rainPercents
+        weekInfo = foldr (zipWith (+)) [0,0,0,0,0,0,0]
+         (fmap (\i ->
+          let weekday = T.takeWhile (/= ' ') $ weatherDates !! (div i 2)
+          in  weekday2Digit weekday) rainPcIndices)
+        displayInfo xs = mconcat $ L.intersperse " " $ fmap (\x -> case x of
+          1 -> "："
+          2 -> "！"
+          0 -> "〇"
+          5 -> "今"
+          _ -> "？") xs
+        today = let raw = weekday2Digit $ T.takeWhile (/= ' ') $ head weatherDates
+                    real = length $ takeWhile (==0) $ (drop 1 raw) <> (take 1 raw) in
+                real
+        breaked = (,)
+              (replicate (today) 0 <> [5] <> drop (today+1) weekInfo)
+              (take (today+1) weekInfo <> replicate (6-today) 0)
 
     case rainPcIndices of
         [] -> pure Nothing
-        _  -> pure . Just $ (T.pack "未来降水可能出现于: \n") <>
+        _  -> pure . Just $ "未来降水可能出现于: \n\n" <>
+                  "日 一 二 三 四 五 六\n" <>
+                  displayInfo (fst breaked) <> "\n" <>
+                  displayInfo (snd breaked) <> "\n\n" <>
                   mconcat (intersperse "\n" (fmap (\i ->
                     weatherDates !! (div i 2)
                     <> ", "
@@ -50,6 +69,16 @@ getNextRainyDay = do
                     <> ", "
                     <> (rainPercents !! i)
                     ) rainPcIndices))
+    where
+      weekday2Digit x = case x of
+        "周日" -> [1,0,0,0,0,0,0]
+        "周一" -> [0,1,0,0,0,0,0]
+        "周二" -> [0,0,1,0,0,0,0]
+        "周三" -> [0,0,0,1,0,0,0]
+        "周四" -> [0,0,0,0,1,0,0]
+        "周五" -> [0,0,0,0,0,1,0]
+        "周六" -> [0,0,0,0,0,0,1]
+        _ -> [0,0,0,0,0,0,0]
 
 
 write7DayScreenshot :: IO Bool
