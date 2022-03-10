@@ -69,7 +69,7 @@ searchBaiduHdl = do
   baiduRst <- lift $ runBaiduSearch query
   case baiduRst of
     Just (link, title, abstract, searchLink) ->
-      reply $ title <> "\n\n" <> abstract <> "\n\n" <> link <> "\n\n" <> searchLink
+      replyQ $ title <> "\n\n" <> abstract <> "\n\n" <> link <> "\n\n" <> searchLink
     Nothing -> pure ()
   where
     getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
@@ -83,7 +83,7 @@ searchGoogleHdl = do
   baiduRst <- lift $ runGoogleSearch query
   case baiduRst of
     Just (link, title, abstract) ->
-      reply $ title <> "\n\n" <> abstract <> "\n\n" <> link
+      replyQ $ title <> "\n\n" <> abstract <> "\n\n" <> link
     Nothing -> pure ()
   where
     getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
