@@ -34,11 +34,13 @@ getScreenshot ((cropWidth, cropHeight), (x, y)) (width, height) url = do
 
 
 callMogrifyCrop :: (Int, Int) -> (Int, Int) -> String -> IO ExitCode
-callMogrifyCrop (width, height) (x, y) name =
+callMogrifyCrop (width, height) (x, y) name = do
   Turtle.proc "mogrify" args Turtle.empty
   where
       args = [ "-crop"
              , showT width <> "x" <> showT height <> "+" <> showT x <> "+" <> showT y
+             , "-fuzz 1%"
+             , "-trim"
              , T.pack name]
 
 callChromiumScreenshot :: (Int, Int) -> Text -> IO (Maybe FilePath)
