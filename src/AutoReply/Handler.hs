@@ -5,27 +5,14 @@ import Data.TaskQueue (TaskQueue, addTask)
 import Data.User ( RepliedTable, UserGroup, replaceUser, fetchUser, User (state))
 import Network.Mirai ( Connection )
 import AutoReply.EventHandle
-    ( _addFriendHandler, _joinGroupHandler, _memberJoinHandler )
 import Data.Monads ( MonadTrans(lift), ReaderT(runReaderT), ReaderT, MonadTrans(lift), ask, asks )
 import Data.Mirai
-    ( getUserId,
-      isAddFriendEvent,
-      isFromGroup,
-      isFromUser,
-      isInvitedToGroupEvent,
-      isNewMemberEvent,
-      storeMsg,
-      isMessage,
-      getPlainText, isMessage, getUserRemark, getGroupName  )
 import Data.Schedule
 import Type.Mirai.Update
-    ( Sender(sdr_id), MessageUpdate(updm_sender), Update(MUpdate), Update )
 import AutoReply.MsgHandle.Private ( stateHandler, incStage )
 import AutoReply.MsgHandle.Common
-    ( searchImageHdl, pingHdl, searchBaiduHdl, searchGoogleHdl, addScheduleHdl, getScheduleHdl, rmScheduleHdl, getWeatherHdl )
 import AutoReply.Misc ( equalT, beginWithT )
 import AutoReply.HandleEnv
-    ( HandleEnv(connection, replyTable, userGroup, update), HandleEnv(HandleEnv) )
 import Data.Maybe ( fromMaybe, fromJust )
 import Util.Log (logWT, LogTag (Info), logWT'T)
 import Util.Misc (showT)
@@ -36,11 +23,6 @@ mainHandler selfId taskQueue userGrp taskList replyTable upd conn = flip runRead
   lift $ storeMsg upd
   case () of
     _
-    --   | isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId ->
-    --       lift $ addTask taskQueue $ (`runReaderT` env) _privMsgHandler
-
-    --   | isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId ->
-    --       lift $ addTask taskQueue $ (`runReaderT` env) _privMsgHandler
 
       | isAddFriendEvent upd ->
           _addFriendHandler
@@ -54,17 +36,19 @@ mainHandler selfId taskQueue userGrp taskList replyTable upd conn = flip runRead
       | isInvitedToGroupEvent upd ->
           _joinGroupHandler
 
-      -- | isSyncUpdate upd ->
-      --     _syncHandler
+    --   | isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId ->
+    --       lift $ addTask taskQueue $ (`runReaderT` env) _privMsgHandler
+
+    --   | isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId ->
+    --       lift $ addTask taskQueue $ (`runReaderT` env) _privMsgHandler
+
+    -- | isSyncUpdate upd ->
+    --     _syncHandler
 
       | otherwise -> pure ()
   where
     env = HandleEnv conn upd taskQueue replyTable userGrp taskList selfId
 
-
-
-guard' :: Applicative f => Bool -> f () -> f ()
-guard' a action = if a then action else pure ()
 
 _privMsgHandler :: ReaderT HandleEnv IO ()
 _privMsgHandler = do
@@ -90,10 +74,15 @@ _grpMsgHandler = do
   guard' (isMessage upd) $ case () of
       _ | equal' "sp"      -> searchImageHdl
         | equal' "ping"    -> pingHdl
+
         | equal' "weather" -> getWeatherHdl
-        | begin' "baidu'"  -> searchBaiduHdl
-        | begin' "google'" -> searchGoogleHdl
-        | begin' "addSchedule'" -> addScheduleHdl
-        | begin' "rmSchedule'"  -> rmScheduleHdl
-        | equal' "getSchedule'" -> getScheduleHdl
+
+        | begin' "baidu"  -> searchBaiduHdl
+        | begin' "baike"  -> searchBaikeHdl
+        | begin' "google" -> searchGoogleHdl
+
+        | equal' "getSchedule" -> getScheduleHdl
+        | begin' "addSchedule" -> addScheduleHdl
+        | begin' "rmSchedule"  -> rmScheduleHdl
+
         | otherwise -> pure ()

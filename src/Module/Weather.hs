@@ -53,13 +53,14 @@ getNextRainyDay = do
           2 -> "！"
           0 -> "〇"
           5 -> "今"
+          8 -> "ㄨ"
           _ -> "？") xs
         today = let raw = weekday2Digit $ T.takeWhile (/= ' ') $ head weatherDates
                     real = length $ takeWhile (==0) $ (drop 1 raw) <> (take 1 raw) in
                 real
         breaked = (,)
-              (replicate (today) 0 <> [5] <> drop (today+1) weekInfo)
-              (take (today+1) weekInfo <> replicate (6-today) 0)
+              (replicate (today) 8 <> [5] <> drop (today+1) weekInfo)
+              (take (today+1) weekInfo <> replicate (6-today) 8)
 
     case rainPcIndices of
         [] -> pure Nothing
