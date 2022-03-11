@@ -25,7 +25,7 @@ import           Util.Log                         ( logWT, LogTag(Info, Debug, E
 import           Util.Misc                        ( showT )
 import           Control.Exception
 import           Module.ImageSearch               ( runSauceNAOSearch, getYandexScreenshot )
-import           Module.WebSearch                 ( runBaiduSearch, runGoogleSearch )
+import           Module.WebSearch                 ( runBaiduSearch, runBaikeSearch, runGoogleSearch )
 import           Module.Weather                   ( get7DayScreenshot, getNextRainyDay )
 
 
@@ -71,6 +71,19 @@ searchBaiduHdl = do
     Just (link, title, abstract, searchLink) ->
       replyQ $ title <> "\n\n" <> abstract <> "\n\n" <> link <> "\n\n" <> searchLink
     Nothing -> pure ()
+  where
+    getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
+
+searchBaikeHdl :: ReaderT HandleEnv IO ()
+searchBaikeHdl = do
+  upd <- asks update
+  let msgTxt = fromMaybe "" (getPlainText upd)
+  let query = getQueryText msgTxt
+  baikeRst <- lift $ runBaikeSearch query
+  case baikeRst of
+    (_       , Nothing)  -> pure ()
+    (Just txt, Just url) -> replyQ $ txt <> "\n\n" <> url
+    (Nothing , Just url) -> reply $ "查询到结果，但没有摘要，请访问该页面以查看结果\n\n" <> url
   where
     getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
 

@@ -39,7 +39,7 @@ callMogrifyCrop (width, height) (x, y) name = do
   where
       args = [ "-crop"
              , showT width <> "x" <> showT height <> "+" <> showT x <> "+" <> showT y
-             , "-fuzz 1%"
+             , "-fuzz", "1%"
              , "-trim"
              , T.pack name]
 
