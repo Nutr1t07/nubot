@@ -73,8 +73,8 @@ runGoogleSearch query = if query == T.empty
     x
 
   getFstAns x = sbl
-    "style=\"flex-shrink:0\">"
-    "</span></div></div><div"
+    "</div><div><div class="
+    "</div></div></div></div></div></div></div></div>"
     x
 
 googleOpts query =  Wreq.defaults
@@ -99,8 +99,8 @@ runBaiduSearch query = if query == T.empty
   sbl a b c = fromMaybe "" $ searchBetweenBL a b c
 
   getAbstract x = concatWord . getWords $ sbl
-    "c-gap-top-small"
-    "</div>"
+    "<span"
+    "</span"
     x
 
   getLink x = toStrict . decodeUtf8 $ sbl
