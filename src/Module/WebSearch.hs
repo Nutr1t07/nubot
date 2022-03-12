@@ -46,7 +46,7 @@ runGoogleSearch :: Text -> IO (Maybe (Text, Text, Text))
 runGoogleSearch query = if query == T.empty
   then return Nothing
   else do
-      resp <- (BL.drop 50000) . (^. Wreq.responseBody) <$> Wreq.getWith (googleOpts query) "https://www.google.com.hk/search"
+      resp <- (BL.drop 10000) . (^. Wreq.responseBody) <$> Wreq.getWith (googleOpts query) "https://www.google.com.hk/search"
       let ans = getFstAns resp
       pure $ Just
         ( getLink ans
@@ -96,31 +96,26 @@ runBaiduSearch query = if query == T.empty
         , getAbstract ans
         , T.pack ("https://www.baidu.com/s?wd=" <> Misc.encodeURI (T.unpack query)))
  where
-  replaceBetween left right txt f =
-    let (oriLeft, x) = Misc.breakOnEnd left txt
-        (middle, remain) = Misc.breakOn right x in
-    oriLeft <> f middle <> remain
-
   sbl a b c = fromMaybe "" $ searchBetweenBL a b c
 
   getAbstract x = concatWord . getWords $ sbl
-    "abstract"
-    "<style>"
+    "c-gap-top-small"
+    "</div>"
     x
 
   getLink x = toStrict . decodeUtf8 $ sbl
-    "href = \""
+    "mu=\""
     "\""
     x
 
   getTitle x = concatWord . getWords $ sbl
-    "<em"
+    "<h3"
     "</a>"
     x
 
   getFstAns x = sbl
-    "result c-container new-pmd"
-    "</div><style>"
+    "result c-container xpath-log new-pmd"
+    "<i "
     x
 
 baiduOpts query =  Wreq.defaults

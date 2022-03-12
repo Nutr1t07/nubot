@@ -49,11 +49,11 @@ getNextRainyDay = do
           let weekday = T.takeWhile (/= ' ') $ weatherDates !! (div i 2)
           in  weekday2Digit weekday) rainPcIndices)
         displayInfo xs = mconcat $ L.intersperse " " $ fmap (\x -> case x of
-          1 -> "："
-          2 -> "！"
-          0 -> "〇"
+          1 -> "溦"
+          2 -> "霈"
+          0 -> "无"
           5 -> "今"
-          8 -> "ㄨ"
+          8 -> "〇"
           _ -> "？") xs
         today = let raw = weekday2Digit $ T.takeWhile (/= ' ') $ head weatherDates
                     real = length $ takeWhile (==0) $ (drop 1 raw) <> (take 1 raw) in
