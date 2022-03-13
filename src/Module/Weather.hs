@@ -56,22 +56,25 @@ getNextRainyDay = do
           8 -> "〇"
           _ -> "？") xs
         today = let raw = weekday2Digit $ T.takeWhile (/= ' ') $ head weatherDates
-                    real = length $ takeWhile (==0) $ (drop 1 raw) <> (take 1 raw) in
-                real
+                in length $ takeWhile (==0) $ (drop 1 raw) <> (take 1 raw)
         breaked = (,)
               (replicate (today) 8 <> [5] <> drop (today+1) weekInfo)
               (take (today+1) weekInfo <> replicate (6-today) 8)
         rainDays = length $ filter (/=0) weekInfo
+        extraInfo = let nextRainCount = length $ takeWhile (== 0) $ drop (today+1) (weekInfo <> weekInfo) in
+               (if nextRainCount == 0 then "明天有雨。\n" else "下次降水将在" <> showT (nextRainCount+1) <> "天后。\n")
+            <> "一周内共有" <> showT rainDays <> "天出现降水。\n"
 
     case rainPcIndices of
         [] -> pure Nothing
-        _  -> pure . Just $ "未来七天内有" <> showT rainDays <> "天可能出现降水: \n" <>
-                  "--------------------\n" <>
-                  "日 一 二 三 四 五 六\n" <>
-                  displayInfo (fst breaked) <> "\n" <>
-                  displayInfo (snd breaked) <> "\n" <>
-                  "--------------------\n" <>
-                  mconcat (intersperse "\n" (fmap (\i ->
+        _  -> pure . Just $
+                  extraInfo
+               <> "--------------------\n"
+               <> "日 一 二 三 四 五 六\n"
+               <> displayInfo (fst breaked) <> "\n"
+               <> displayInfo (snd breaked) <> "\n"
+               <> "--------------------\n"
+               <> mconcat (intersperse "\n" (fmap (\i ->
                     weatherDates !! (div i 2)
                     <> ", "
                     <> (if mod i 2 == 0 then "日" else "夜")
