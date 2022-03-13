@@ -34,21 +34,20 @@ import           Util.Log                       ( logWT, LogTag(Info) )
 import           Type.Mirai.Common              ( ChainMessage(ChainMessage) )
 import           Data.Mirai                     ( mkMessageChainTP )
 
-
-
+splitIntoGroups :: Int -> [a] -> [[a]]
+splitIntoGroups _ [] = []
+splitIntoGroups i xs = if length xs > i then (take (i+1) xs) : splitIntoGroups i (drop (i+1) xs) else [xs]
 
 fetchYandeRe24h_out :: IO [[ChainMessage]]
 fetchYandeRe24h_out = do
   urls <- fetchYandeRe24h
-  let splitInto5Group xs = if length xs > 7 then (take 8 xs) : splitInto5Group(drop 8 xs) else [xs]
-  pure [(mkMessageChainTP T.empty url ) | url <- splitInto5Group urls]
+  pure [(mkMessageChainTP T.empty url ) | url <- splitIntoGroups 6 urls]
 
 
 fetchYandeReWeek_out :: IO [[ChainMessage]]
 fetchYandeReWeek_out = do
   urls <- fetchYandeReWeek
-  let splitInto5Group xs = if length xs > 7 then (take 8 xs) : splitInto5Group(drop 8 xs) else [xs]
-  pure [(mkMessageChainTP T.empty url ) | url <- splitInto5Group urls]
+  pure [(mkMessageChainTP T.empty url) | url <- splitIntoGroups 6 urls]
 
 fetchYandeReWeek :: IO [Text]
 fetchYandeReWeek = do

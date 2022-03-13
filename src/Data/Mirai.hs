@@ -102,8 +102,10 @@ mkMessageChainT :: Text -> [ChainMessage]
 mkMessageChainT txt = [(emptyChainMessage "Plain") {cm_text = Just txt}]
 
 mkMessageChainTP :: Text -> [Text] -> [ChainMessage]
-mkMessageChainTP txt urls = ((emptyChainMessage "Plain") {cm_text = Just txt}) :
-  ((\url -> (emptyChainMessage "Image") {cm_url = Just url}) <$> urls)
+mkMessageChainTP "" urls = ((\url -> (emptyChainMessage "Image") {cm_url = Just url}) <$> urls)
+mkMessageChainTP txt urls =
+  ((emptyChainMessage "Plain") {cm_text = Just txt})
+  : ((\url -> (emptyChainMessage "Image") {cm_url = Just url}) <$> urls)
 
 
 transUpd2SendMsgTQ :: Update -> Text -> Maybe RequestContent
