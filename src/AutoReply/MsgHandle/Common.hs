@@ -18,11 +18,13 @@ import           Data.Schedule
 import           Data.IORef
 import           Util.Log                         ( logWT, LogTag(Info, Debug, Error) )
 import           Util.Misc                        ( showT )
+import           Util.Time                        ( getDate )
 import           Control.Exception
 import           Module.ImageSearch               ( runSauceNAOSearch, getYandexScreenshot )
 import           Module.WebSearch                 ( runBaiduSearch, runBaikeSearch, runGoogleSearch )
 import           Module.Weather                   ( get7DayScreenshot, getNextRainyDay )
 import           Module.IllustrationFetch         ( fetchYandeRe24h )
+import           Util.SystemCall                  ( getScreenshot' )
 
 searchImageHdl :: ReaderT HandleEnv IO ()
 searchImageHdl = do
@@ -166,6 +168,21 @@ getYande24hHdl = do
   urls <- lift fetchYandeRe24h
   traverse_ (replyPic "") urls
 
+getScreenshotHdl :: ReaderT HandleEnv IO ()
+getScreenshotHdl = do
+  lift $ logWT Info "hit"
+  upd <- asks update
+  let msgTxt = fromMaybe "" (getPlainText upd)
+  let url = getQueryText msgTxt
+  picContent <- lift $ getScreenshot' (1280, 1000) url
+  case picContent of
+    Nothing -> replyQ "截图失败。"
+    Just p  -> do
+      currTime <- lift $ T.pack <$> getDate "%Y-%m-%d %R"
+      replyPicBase64Q ("#" <> currTime) p
+  where
+    getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
+
 reply' f = do
   upd <- asks update
   conn <- asks connection
@@ -176,3 +193,4 @@ replyPic text url = reply' (\upd -> transUpd2SendMsgP upd text url)
 replyQ text = reply' (`transUpd2SendMsgTQ` text)
 replyPicQ text url = reply' (\upd -> transUpd2SendMsgPQ upd text url)
 replyPicBase64 text picBase64 = reply' (\upd -> transUpd2SendMsgPBase64 upd text picBase64)
+replyPicBase64Q text picBase64 = reply' (\upd -> transUpd2SendMsgPQBase64 upd text picBase64)

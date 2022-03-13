@@ -86,5 +86,6 @@ _grpMsgHandler = do
         | begin' "rmSchedule"  -> rmScheduleHdl
 
         | equal' "setu24h" -> getYande24hHdl
+        | begin' "screenshot" -> getScreenshotHdl
 
         | otherwise -> pure ()

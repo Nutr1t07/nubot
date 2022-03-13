@@ -78,6 +78,10 @@ transUpd2SendMsgPBase64 :: Update -> Text -> Text -> Maybe RequestContent
 transUpd2SendMsgPBase64 upd txt picBase64 = (\(RSendMsg x) -> RSendMsg x{sm_messageChain = picChain : sm_messageChain x }) <$> transUpd2SendMsgT upd txt
   where picChain = (emptyChainMessage "Image"){cm_base64 = Just picBase64}
 
+transUpd2SendMsgPQBase64 :: Update -> Text -> Text -> Maybe RequestContent
+transUpd2SendMsgPQBase64 upd@(MUpdate MessageUpdate{..}) txt url = (\(RSendMsg x) -> RSendMsg $ x {sm_quote = getMessageId upd}) <$> transUpd2SendMsgPBase64 upd txt url
+transUpd2SendMsgPQBase64 _ _ _ = Nothing
+
 transUpd2SendMsgT :: Update -> Text -> Maybe RequestContent
 transUpd2SendMsgT upd@(MUpdate MessageUpdate{..}) txt =
   let initMsg = case getChatType upd of
