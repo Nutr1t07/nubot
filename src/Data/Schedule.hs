@@ -174,7 +174,7 @@ checkTimeSatisfied TimeInfo{..} = do
 
   where
     checkTimeField _ MatchAll = True
-    checkTimeField curr (MatchSome xs)  = all (checkBaseField curr) xs
+    checkTimeField curr (MatchSome xs)  = any (checkBaseField curr) xs
 
     checkBaseField curr (SingleField x)  = x == curr
     checkBaseField curr (RangeField min max) = curr >= min && curr <= max
