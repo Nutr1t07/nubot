@@ -164,7 +164,11 @@ getWeatherHdl = do
 getYande24hHdl :: ReaderT HandleEnv IO ()
 getYande24hHdl = do
   urls <- lift fetchYandeRe24h
+<<<<<<< HEAD
   traverse_ (replyPic "") urls
+=======
+  traverse_ (replyPicQ "") urls
+>>>>>>> ed9ffa34862b9d4258b47ad21feb7246d7013f4e
 
 reply' f = do
   upd <- asks update
