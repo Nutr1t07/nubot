@@ -6,3 +6,4 @@ config.json
 msgStore.db
 cache
 test.html
+log.txt
