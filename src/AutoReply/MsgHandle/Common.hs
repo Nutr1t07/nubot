@@ -13,6 +13,7 @@ import           AutoReply.HandleEnv
 import           AutoReply.Misc                   ( trimT, trimT')
 import           Data.Monads                      ( ReaderT, MonadTrans(lift), asks )
 import           Data.Maybe                       ( fromMaybe, fromJust )
+import           Data.Foldable                    ( traverse_ )
 import qualified Data.Text                  as T
 import           Data.Text.Encoding         as T  ( decodeUtf8 )
 import qualified Data.ByteString            as BS
@@ -27,7 +28,7 @@ import           Control.Exception
 import           Module.ImageSearch               ( runSauceNAOSearch, getYandexScreenshot )
 import           Module.WebSearch                 ( runBaiduSearch, runBaikeSearch, runGoogleSearch )
 import           Module.Weather                   ( get7DayScreenshot, getNextRainyDay )
-
+import           Module.IllustrationFetch         ( fetchYandeRe24h )
 
 searchImageHdl :: ReaderT HandleEnv IO ()
 searchImageHdl = do
@@ -166,6 +167,10 @@ getWeatherHdl = do
       replyQ "获取天气图像失败。"
     Just x -> replyPicBase64 "" x
 
+getYande24hHdl :: ReaderT HandleEnv IO ()
+getYande24hHdl = do
+  urls <- lift fetchYandeRe24h
+  traverse_ (replyPicQ "") urls
 
 reply' f = do
   upd <- asks update
