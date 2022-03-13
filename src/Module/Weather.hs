@@ -47,15 +47,16 @@ getNextRainyDay = do
         weekInfo = foldr (zipWith (+)) [0,0,0,0,0,0,0]
          (fmap (\i ->
           let weekday = T.takeWhile (/= ' ') $ weatherDates !! (div i 2)
-          in  weekday2Digit weekday) rainPcIndices)
+          in  weekday2Digit (mod i 2) weekday) rainPcIndices)
         displayInfo xs = mconcat $ L.intersperse " " $ fmap (\x -> case x of
-          1 -> "溦"
-          2 -> "霈"
+          1 -> "日"
+          2 -> "夜"
+          3 -> "霈"
           0 -> "无"
           5 -> "今"
           8 -> "〇"
           _ -> "？") xs
-        today = let raw = weekday2Digit $ T.takeWhile (/= ' ') $ head weatherDates
+        today = let raw = weekday2Digit 0 $ T.takeWhile (/= ' ') $ head weatherDates
                 in length $ takeWhile (==0) $ (drop 1 raw) <> (take 1 raw)
         breaked = (,)
               (replicate (today) 8 <> [5] <> drop (today+1) weekInfo)
@@ -69,27 +70,33 @@ getNextRainyDay = do
         [] -> pure Nothing
         _  -> pure . Just $
                   extraInfo
-               <> "--------------------\n"
+               <> "------------------\n"
                <> "日 一 二 三 四 五 六\n"
                <> displayInfo (fst breaked) <> "\n"
                <> displayInfo (snd breaked) <> "\n"
-               <> "--------------------\n"
-               <> mconcat (intersperse "\n" (fmap (\i ->
-                    weatherDates !! (div i 2)
+               <> "------------------\n"
+               <> mconcat (intersperse "\n" $ filter (/= "") (fmap (\(a,b) ->
+                  let aExist = elem a rainPcIndices
+                      bExist = elem b rainPcIndices in
+                 if not (aExist || bExist) then "" else
+                    weatherDates !! (div a 2)
                     <> ", "
-                    <> (if mod i 2 == 0 then "日" else "夜")
-                    <> ", "
-                    <> (rainPercents !! i)
-                    ) rainPcIndices))
+                    <> (case () of
+                      _ | aExist && bExist -> "全天, (" <> (rainPercents !! a) <> ", " <> (rainPercents !! b) <> ")"
+                        | aExist -> "日, " <> (rainPercents !! a)
+                        | bExist -> "夜, " <> (rainPercents !! b)
+                      )
+                    ) indicesList))
     where
-      weekday2Digit x = case x of
-        "周日" -> [1,0,0,0,0,0,0]
-        "周一" -> [0,1,0,0,0,0,0]
-        "周二" -> [0,0,1,0,0,0,0]
-        "周三" -> [0,0,0,1,0,0,0]
-        "周四" -> [0,0,0,0,1,0,0]
-        "周五" -> [0,0,0,0,0,1,0]
-        "周六" -> [0,0,0,0,0,0,1]
+      indicesList = take 15 ([(0,1)] <> (zipWith (\(a,b) (c,d) -> (a+c,b+d)) indicesList (repeat (2,2))))
+      weekday2Digit i x = case x of
+        "周日" -> [i+1,0,0,0,0,0,0]
+        "周一" -> [0,i+1,0,0,0,0,0]
+        "周二" -> [0,0,i+1,0,0,0,0]
+        "周三" -> [0,0,0,i+1,0,0,0]
+        "周四" -> [0,0,0,0,i+1,0,0]
+        "周五" -> [0,0,0,0,0,i+1,0]
+        "周六" -> [0,0,0,0,0,0,i+1]
         _ -> [0,0,0,0,0,0,0]
 
 
