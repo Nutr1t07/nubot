@@ -14,6 +14,32 @@ import           Data.ByteString.Base64             ( encodeBase64 )
 import           Control.Exception
 import           Data.Text                          ( Text )
 
+getScreenshot' :: (Int, Int) -> Text -> IO (Maybe Text)
+getScreenshot' (width, height) url = do
+    logWT'T Info $ "getting screenshot of " <> url
+    fileName <- callChromiumScreenshot (width, height) url
+    case fileName of
+        Nothing -> pure Nothing
+        Just name -> do
+
+            code' <- callMogrifyCrop' name
+            case code' of
+                  ExitFailure _ -> pure Nothing
+
+                  ExitSuccess -> do
+                    picContent <- catch ( encodeBase64 <$> BS.readFile name) (\x ->  ((logWT Error $ "error reading picture base64" <> show (x::SomeException)) >> pure ""))
+                    case picContent of
+                      "" -> pure Nothing
+                      x  -> pure $ Just x
+
+callMogrifyCrop' :: String -> IO ExitCode
+callMogrifyCrop' name = do
+  Turtle.proc "mogrify" args Turtle.empty
+  where
+      args = [ "-colors", "255"
+             , "-resize", "50%"
+             , T.pack name]
+
 getScreenshot :: ((Int, Int), (Int, Int)) -> (Int, Int) -> Text -> IO (Maybe Text)
 getScreenshot ((cropWidth, cropHeight), (x, y)) (width, height) url = do
     logWT'T Info $ "getting screenshot of " <> url
@@ -59,5 +85,9 @@ callChromiumScreenshot (width, height) url = do
              , "--disable-gpu"
              , "--no-sandbox"
              , "--screenshot"
+             , "--hide-scrollbars"
+             , "--ignore-certificate-errors-spki-list"
+             , "--virtual-time-budget=10000"
+             , "--run-all-compositor-stages-before-draw"
              , "--window-size=" <> showT width <> "," <> showT height
              , url]
