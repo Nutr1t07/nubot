@@ -41,13 +41,14 @@ splitIntoGroups i xs = if length xs > i then (take (i+1) xs) : splitIntoGroups i
 fetchYandeRe24h_out :: IO [[ChainMessage]]
 fetchYandeRe24h_out = do
   urls <- fetchYandeRe24h
-  pure [(mkMessageChainTP T.empty url ) | url <- splitIntoGroups 6 urls]
+  pure $ (mkMessageChainTP T.empty . pure) <$> urls
+  -- pure [(mkMessageChainTP T.empty url ) | url <- splitIntoGroups 6 urls]
 
 
 fetchYandeReWeek_out :: IO [[ChainMessage]]
 fetchYandeReWeek_out = do
   urls <- fetchYandeReWeek
-  pure [(mkMessageChainTP T.empty url) | url <- splitIntoGroups 6 urls]
+  pure $ (mkMessageChainTP T.empty . pure) <$> urls
 
 fetchYandeReWeek :: IO [Text]
 fetchYandeReWeek = do
