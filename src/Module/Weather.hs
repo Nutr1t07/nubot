@@ -61,13 +61,16 @@ getNextRainyDay = do
         breaked = (,)
               (replicate (today) 8 <> [5] <> drop (today+1) weekInfo)
               (take (today+1) weekInfo <> replicate (6-today) 8)
+        rainDays = length $ filter (/=0) weekInfo
 
     case rainPcIndices of
         [] -> pure Nothing
-        _  -> pure . Just $ "未来降水可能出现于: \n\n" <>
+        _  -> pure . Just $ "未来七天内有" <> showT rainDays <> "天可能出现降水: \n" <>
+                  "--------------------\n" <>
                   "日 一 二 三 四 五 六\n" <>
                   displayInfo (fst breaked) <> "\n" <>
-                  displayInfo (snd breaked) <> "\n\n" <>
+                  displayInfo (snd breaked) <> "\n" <>
+                  "--------------------\n" <>
                   mconcat (intersperse "\n" (fmap (\i ->
                     weatherDates !! (div i 2)
                     <> ", "
