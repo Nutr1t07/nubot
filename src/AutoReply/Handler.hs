@@ -85,4 +85,6 @@ _grpMsgHandler = do
         | begin' "addSchedule" -> addScheduleHdl
         | begin' "rmSchedule"  -> rmScheduleHdl
 
+        | equal' "setu24h" -> getYande24hHdl
+
         | otherwise -> pure ()

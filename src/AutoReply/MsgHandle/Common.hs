@@ -2,17 +2,12 @@
 module AutoReply.MsgHandle.Common where
 
 import           Network.Mirai                    ( sendMessage )
-import           Data.Mirai                       ( getPlainText,
-                                                    getImgUrls',
-                                                    transUpd2SendMsgTQ,
-                                                    transUpd2SendMsgPBase64,
-                                                    getChatType,
-                                                    transUpd2SendMsgT,
-                                                    transUpd2SendMsgPQ, getMessageTime, getGroupId, getUserId )
+import           Data.Mirai
 import           AutoReply.HandleEnv
 import           AutoReply.Misc                   ( trimT, trimT')
 import           Data.Monads                      ( ReaderT, MonadTrans(lift), asks )
 import           Data.Maybe                       ( fromMaybe, fromJust )
+import           Data.Foldable                    ( traverse_ )
 import qualified Data.Text                  as T
 import           Data.Text.Encoding         as T  ( decodeUtf8 )
 import qualified Data.ByteString            as BS
@@ -27,7 +22,7 @@ import           Control.Exception
 import           Module.ImageSearch               ( runSauceNAOSearch, getYandexScreenshot )
 import           Module.WebSearch                 ( runBaiduSearch, runBaikeSearch, runGoogleSearch )
 import           Module.Weather                   ( get7DayScreenshot, getNextRainyDay )
-
+import           Module.IllustrationFetch         ( fetchYandeRe24h )
 
 searchImageHdl :: ReaderT HandleEnv IO ()
 searchImageHdl = do
@@ -166,6 +161,10 @@ getWeatherHdl = do
       replyQ "获取天气图像失败。"
     Just x -> replyPicBase64 "" x
 
+getYande24hHdl :: ReaderT HandleEnv IO ()
+getYande24hHdl = do
+  urls <- lift fetchYandeRe24h
+  traverse_ (replyPic "") urls
 
 reply' f = do
   upd <- asks update
@@ -173,6 +172,7 @@ reply' f = do
   lift $ logWT Debug $ "sending message" <> show (f upd)
   lift $ sendMessage (fromJust $ getChatType upd) conn (f upd)
 reply text = reply' (`transUpd2SendMsgT` text)
+replyPic text url = reply' (\upd -> transUpd2SendMsgP upd text url)
 replyQ text = reply' (`transUpd2SendMsgTQ` text)
 replyPicQ text url = reply' (\upd -> transUpd2SendMsgPQ upd text url)
 replyPicBase64 text picBase64 = reply' (\upd -> transUpd2SendMsgPBase64 upd text picBase64)
