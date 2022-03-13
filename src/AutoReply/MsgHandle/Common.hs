@@ -192,5 +192,10 @@ reply text = reply' (`transUpd2SendMsgT` text)
 replyPic text url = reply' (\upd -> transUpd2SendMsgP upd text url)
 replyQ text = reply' (`transUpd2SendMsgTQ` text)
 replyPicQ text url = reply' (\upd -> transUpd2SendMsgPQ upd text url)
+<<<<<<< HEAD
 replyPicBase64 text picBase64 = reply' (\upd -> transUpd2SendMsgPBase64 upd text picBase64)
 replyPicBase64Q text picBase64 = reply' (\upd -> transUpd2SendMsgPQBase64 upd text picBase64)
+=======
+replyPicBase64 text picBase64 = reply' (\upd -> transUpd2SendMsgPQBase64 upd text picBase64)
+replyPicBase64Q text picBase64 = reply' (\upd -> transUpd2SendMsgPBase64 upd text picBase64)
+>>>>>>> b165269e4a4ff5567c3715527a6470af96b6d19c
