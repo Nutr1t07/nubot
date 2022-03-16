@@ -28,6 +28,25 @@ getRainyDay_out = do
     Nothing -> pure []
     Just x -> pure $ [mkMessageChainT x]
 
+getNextRainyHour :: IO [Int]
+getNextRainyHour = do
+    raw <- (^. responseBody) <$> Wreq.get "https://weather.com/zh-CN/weather/hourbyhour/l/23.285665,116.148000"
+    let
+        nextDayRaw = (!! 1) $ searchAllBetweenBL "id=\"currentDateId" "id=\"currentDateId" raw
+        rainPercents = transBL2TS <$> searchAllBetweenBL "data-testid=\"PercentageValue\">" "<" nextDayRaw
+        rainyHours = findIndices (\x -> T.length x == 4      -- '100%' has 4 characters
+                                    || (T.length x == 3 && ((ord.T.head) x) > 50) -- any larger than '30%'
+                                 ) rainPercents
+    pure rainyHours
+
+hoursToText :: [Int] -> Text
+hoursToText xss = go (-1) False xss
+  where go :: Int -> Bool -> [Int] -> Text
+        go last False (x:y:xs) = if x+1 == y then go x True (y:xs) else showT x <> ", " <> (go y False (y:xs))
+        go last True (x:y:xs) = if x+1 == y then go last True (y:xs) else showT last <> "~" <> showT x <> ", " <> (go y False (y:xs))
+        go last False (x:[]) = showT last
+        go last True (x:[]) = showT last <> "~" <> showT x
+
 getNextRainyDay :: IO (Maybe Text)
 getNextRainyDay = do
     raw <- (^. responseBody) <$> Wreq.get "https://weather.com/zh-CN/weather/tenday/l/23.285665,116.148000"
@@ -40,7 +59,6 @@ getNextRainyDay = do
         rainPercents  = take 14 $ transBL2TS <$> if length rainPercents' == 29
                            then drop 1 rainPercents'
                            else drop 2 rainPercents'
-    let
         rainPcIndices = findIndices (\x -> T.length x == 4      -- '100%' has 4 characters
                                        || (T.length x == 3 && ((ord.T.head) x) > 50) -- any larger than '30%'
                                     ) rainPercents
@@ -65,11 +83,24 @@ getNextRainyDay = do
         extraInfo = let nextRainCount = length $ takeWhile (== 0) $ drop (today+1) (weekInfo <> weekInfo) in
                (if nextRainCount == 0 then "明天有雨。\n" else "下次降水将在" <> showT (nextRainCount+1) <> "天后。\n")
             <> "一周内共有" <> showT rainDays <> "天出现降水。\n"
+    hours <- getNextRainyHour
+    let tmrwRainyHourText = case hours of
+                              [] -> ""
+                              xs -> let am = filter (<13) xs
+                                        pm = filter (>12) xs
+                                        both = (length am /= 0) && (length pm /= 0)
+                                    in
+                                       "明天"
+                                    <> (if length am /= 0 then "早上" <> hoursToText am <> "点" else "")
+                                    <> (if both then "，" else "")
+                                    <> (if length pm /= 0 then "下午" <> hoursToText pm <> "点" else "")
+                                    <> "有降水。\n"
 
     case rainPcIndices of
         [] -> pure Nothing
         _  -> pure . Just $
-                  extraInfo
+                  tmrwRainyHourText
+               <> extraInfo
                <> "------------------\n"
                <> "日 一 二 三 四 五 六\n"
                <> displayInfo (fst breaked) <> "\n"
