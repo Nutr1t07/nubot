@@ -67,9 +67,9 @@ runGoogleSearch query = if query == T.empty
     "\""
     x
 
-  getTitle x = toStrict . decodeUtf8 $ sbl'
-    ">"
-    "</h3><div "
+  getTitle x = concatWord . getWords $ sbl
+    "<h3"
+    "</h3"
     x
 
   getFstAns x = sbl
@@ -100,7 +100,7 @@ runBaiduSearch query = if query == T.empty
 
   getAbstract x = concatWord . getWords $ sbl
     "<span"
-    "</span"
+    "source"
     x
 
   getLink x = toStrict . decodeUtf8 $ sbl

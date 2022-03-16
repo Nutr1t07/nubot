@@ -170,7 +170,6 @@ getYande24hHdl = do
 
 getScreenshotHdl :: ReaderT HandleEnv IO ()
 getScreenshotHdl = do
-  lift $ logWT Info "hit"
   upd <- asks update
   let msgTxt = fromMaybe "" (getPlainText upd)
   let url = getQueryText msgTxt
