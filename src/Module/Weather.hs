@@ -12,6 +12,7 @@ import           Data.Text                     ( Text )
 import           Data.Text.Encoding as T
 import           Data.List          as L       ( findIndices, intersperse )
 import           Data.Char                     ( ord )
+import           Data.Maybe
 import           System.Directory
 import           Control.Exception
 import           Util.Log
@@ -39,11 +40,12 @@ getNextRainyHour = do
                                  ) rainPercents
     pure rainyHours
 
-hoursToText :: [Int] -> Text
-hoursToText xss = go (-1) False xss
+hoursToText :: [Int] -> Maybe Text
+hoursToText [] = Nothing
+hoursToText xss = Just $ go (-1) False xss
   where go :: Int -> Bool -> [Int] -> Text
-        go last False (x:y:xs) = if x+1 == y then go x True (y:xs) else showT x <> ", " <> (go y False (y:xs))
-        go last True (x:y:xs) = if x+1 == y then go last True (y:xs) else showT last <> "~" <> showT x <> ", " <> (go y False (y:xs))
+        go last False (x:y:xs) = if x+1 == y then go x True (y:xs) else showT x <> "、" <> (go y False (y:xs))
+        go last True (x:y:xs) = if x+1 == y then go last True (y:xs) else showT last <> "~" <> showT x <> "、" <> (go y False (y:xs))
         go last False (x:[]) = showT x
         go last True (x:[]) = showT last <> "~" <> showT x
 
@@ -87,15 +89,16 @@ getNextRainyDay = do
     hours <- getNextRainyHour
     let tmrwRainyHourText = case hours of
                               [] -> ""
-                              xs -> let am = filter (<13) xs
-                                        pm = filter (>12) xs
-                                        both = (length am /= 0) && (length pm /= 0)
+                              xs -> let aam = filter (<6) xs
+                                        am = filter (all id.([(>5),(<13)] <*>).pure) xs
+                                        pm = filter (all id.([(>12),(<19)] <*>).pure)  xs
+                                        ppm = filter (>18) xs
+                                        genText t hours = ((t <>) . (<> "点")) <$> (hoursToText hours)
                                     in
-                                       "明天"
-                                    <> (if length am /= 0 then "早上" <> hoursToText am <> "点" else "")
-                                    <> (if both then "，" else "")
-                                    <> (if length pm /= 0 then "下午" <> hoursToText pm <> "点" else "")
-                                    <> "有降水。\n"
+                                    ("明天" <>) . (<> "有降水。\n") $
+                                      mconcat $ intersperse ", " $ catMaybes $ zipWith (\f x -> f x)
+                                                    (genText <$> ["凌晨", "早上", "下午", "夜晚"])
+                                                    [aam, am, pm, ppm]
 
     case rainPcIndices of
         [] -> pure Nothing
