@@ -24,7 +24,6 @@ getHolidayText :: IO (Maybe Text)
 getHolidayText = do
   date <- getTomorrowDate "%Y-%m-%d"
   hld' <- getHoliday date
-  -- today <- getTomorrowDate "%m-%d %R"
   let textIt hld = case hld_name hld of
                       "" -> Nothing
                       _  -> do

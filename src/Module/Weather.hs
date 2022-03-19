@@ -44,7 +44,7 @@ hoursToText xss = go (-1) False xss
   where go :: Int -> Bool -> [Int] -> Text
         go last False (x:y:xs) = if x+1 == y then go x True (y:xs) else showT x <> ", " <> (go y False (y:xs))
         go last True (x:y:xs) = if x+1 == y then go last True (y:xs) else showT last <> "~" <> showT x <> ", " <> (go y False (y:xs))
-        go last False (x:[]) = showT last
+        go last False (x:[]) = showT x
         go last True (x:[]) = showT last <> "~" <> showT x
 
 getNextRainyDay :: IO (Maybe Text)
@@ -81,8 +81,9 @@ getNextRainyDay = do
               (take (today+1) weekInfo <> replicate (6-today) 8)
         rainDays = length $ filter (/=0) weekInfo
         extraInfo = let nextRainCount = length $ takeWhile (== 0) $ drop (today+1) (weekInfo <> weekInfo) in
-               (if nextRainCount == 0 then "明天有雨。\n" else "下次降水将在" <> showT (nextRainCount+1) <> "天后。\n")
+               (if nextRainCount == 0 then "" else "下次降水将在" <> showT (nextRainCount+1) <> "天后。\n")
             <> "一周内共有" <> showT rainDays <> "天出现降水。\n"
+
     hours <- getNextRainyHour
     let tmrwRainyHourText = case hours of
                               [] -> ""

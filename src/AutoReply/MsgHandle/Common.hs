@@ -53,7 +53,7 @@ pingHdl = do
   upd <- asks update
   let msgTime = (* 1000) <$> getMessageTime upd
   let timeInterval = case msgTime of
-                       Just x -> let x' = ct - x in showT $ if x' < 0 then 0 - x' else x'
+                       Just x -> showT $ abs x
                        Nothing -> "UNKNOWN"
   replyQ $ "1 packet transmitted, 1 received, 0% packet loss, time " <> timeInterval <> "ms"
 
