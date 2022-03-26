@@ -83,27 +83,37 @@ getNextRainyDay = do
               (take (today+1) weekInfo <> replicate (6-today) 8)
         rainDays = length $ filter (/=0) weekInfo
         extraInfo = let nextRainCount = length $ takeWhile (== 0) $ drop (today+1) (weekInfo <> weekInfo) in
-               (if nextRainCount == 0 then "" else "下次降水将在" <> showT (nextRainCount+1) <> "天后。\n")
+               (case nextRainCount of
+                  0 -> ""
+                  1 -> "后天有雨。"
+                  _ -> "下次降水将在" <> showT (nextRainCount+1) <> "天后。\n")
             <> "一周内共有" <> showT rainDays <> "天出现降水。\n"
 
     hours <- getNextRainyHour
     let tmrwRainyHourText = case hours of
                               [] -> ""
-                              xs -> let aam = filter (<6) xs
-                                        am = filter (all id.([(>5),(<13)] <*>).pure) xs
-                                        pm = filter (all id.([(>12),(<19)] <*>).pure)  xs
-                                        ppm = filter (>18) xs
-                                        genText t hours = ((t <>) . (<> "点")) <$> (hoursToText hours)
-                                    in
-                                    ("明天" <>) . (<> "有降水。\n") $
-                                      mconcat $ intersperse ", " $ catMaybes $ zipWith (\f x -> f x)
-                                                    (genText <$> ["凌晨", "早上", "下午", "夜晚"])
-                                                    [aam, am, pm, ppm]
-
+                              xs ->
+                                    -- let aam = filter (<13) xs
+                                        -- ppm = filter (>12) xs
+                                        -- genText t hours = (<> t) <$> (hoursToText hours)
+                                    -- in
+                                    -- ("明日" <>) . (<> "有雨。\n") $
+                                    --   mconcat $ intersperse "," $ catMaybes $ zipWith (\f x -> f x)
+                                    --                 (genText <$> ["am", "pm"])
+                                    --                 [aam, ppm]
+                                    fromMaybe "" $
+                                      (("明日" <>) . (<> "时有雨。\n")) <$> (hoursToText hours)
+    let isLastRain = case rainPcIndices of
+                        [0,1] -> True
+                        [1] -> True
+                        [0] -> True
+                        _   -> False
+        lastRainInfo = if isLastRain then "明天是未来一周内唯一的雨天。" else ""
     case rainPcIndices of
         [] -> pure Nothing
         _  -> pure . Just $
                   tmrwRainyHourText
+               <> lastRainInfo
                <> extraInfo
                <> "------------------\n"
                <> "日 一 二 三 四 五 六\n"
@@ -123,6 +133,9 @@ getNextRainyDay = do
                       )
                     ) indicesList))
     where
+      -- indicesList = [(0,1),(2,3),(4,5),(6,7),(8,9),
+      --   (10,11),(12,13),(14,15),(16,17),(18,19),
+      --   (20,21),(22,23),(24,25),(26,27),(28,29)]
       indicesList = take 15 ([(0,1)] <> (zipWith (\(a,b) (c,d) -> (a+c,b+d)) indicesList (repeat (2,2))))
       weekday2Digit i x = case x of
         "周日" -> [i+1,0,0,0,0,0,0]

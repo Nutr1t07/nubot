@@ -53,7 +53,7 @@ pingHdl = do
   upd <- asks update
   let msgTime = (* 1000) <$> getMessageTime upd
   let timeInterval = case msgTime of
-                       Just x -> showT $ abs x
+                       Just x -> showT $ abs (ct - x)
                        Nothing -> "UNKNOWN"
   replyQ $ "1 packet transmitted, 1 received, 0% packet loss, time " <> timeInterval <> "ms"
 
@@ -67,7 +67,7 @@ searchBaiduHdl = do
   case baiduRst of
     Just (link, title, abstract, searchLink) ->
       replyQ $ title <> "\n\n" <> abstract <> "\n\n" <> link <> "\n\n" <> searchLink
-    Nothing -> pure ()
+    Nothing -> replyQ "出错了 :("
   where
     getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
 
@@ -76,9 +76,10 @@ searchBaikeHdl = do
   upd <- asks update
   let msgTxt = fromMaybe "" (getPlainText upd)
   let query = getQueryText msgTxt
+  lift $ logWT Info $ "[searchBaikeHdl] searching text: " <> show query
   baikeRst <- lift $ runBaikeSearch query
   case baikeRst of
-    (_       , Nothing)  -> pure ()
+    (_       , Nothing)  -> replyQ "没有找到结果 :("
     (Just txt, Just url) -> replyQ $ txt <> "\n\n" <> url
     (Nothing , Just url) -> reply $ "查询到结果，但没有摘要，请访问该页面以查看结果\n\n" <> url
   where
@@ -94,7 +95,7 @@ searchGoogleHdl = do
   case baiduRst of
     Just (link, title, abstract) ->
       replyQ $ title <> "\n\n" <> abstract <> "\n\n" <> link
-    Nothing -> pure ()
+    Nothing -> replyQ "出错了 :("
   where
     getQueryText txt = trimT' " \n" $ T.dropWhile (/= ' ') txt
 

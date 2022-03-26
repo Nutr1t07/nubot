@@ -37,7 +37,7 @@ callMogrifyCrop' name = do
   Turtle.proc "mogrify" args Turtle.empty
   where
       args = [ "-colors", "255"
-             , "-resize", "50%"
+             , "-resize", "80%"
              , T.pack name]
 
 getScreenshot :: ((Int, Int), (Int, Int)) -> (Int, Int) -> Text -> IO (Maybe Text)
