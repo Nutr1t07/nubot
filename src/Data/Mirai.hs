@@ -89,7 +89,7 @@ transUpd2SendMsgT upd@(MUpdate MessageUpdate{..}) txt =
                   Just Temp   -> Just $ SendMsg (getUserId upd) (getGroupId upd) Nothing []
                   Just Friend -> Just $ SendMsg (getUserId upd) Nothing Nothing []
                   Nothing -> Nothing in
-  (\x -> RSendMsg $ x {sm_messageChain = (mkMessageChainT txt)}) <$> initMsg
+  (\x -> RSendMsg $ x {sm_messageChain = mkMessageChainT txt}) <$> initMsg
 transUpd2SendMsgT upd@(EUpdate EventUpdate{..}) txt
  | upde_type == "BotInvitedJoinGroupRequestEvent" =
                   Just $ RSendMsg $ SendMsg Nothing (getGroupId upd) Nothing (mkMessageChainT txt)
@@ -106,7 +106,7 @@ mkMessageChainT :: Text -> [ChainMessage]
 mkMessageChainT txt = [(emptyChainMessage "Plain") {cm_text = Just txt}]
 
 mkMessageChainTP :: Text -> [Text] -> [ChainMessage]
-mkMessageChainTP "" urls = ((\url -> (emptyChainMessage "Image") {cm_url = Just url}) <$> urls)
+mkMessageChainTP "" urls = (\url -> (emptyChainMessage "Image") {cm_url = Just url}) <$> urls
 mkMessageChainTP txt urls =
   ((emptyChainMessage "Plain") {cm_text = Just txt})
   : ((\url -> (emptyChainMessage "Image") {cm_url = Just url}) <$> urls)

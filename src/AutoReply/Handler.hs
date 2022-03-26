@@ -42,8 +42,8 @@ mainHandler selfId taskQueue userGrp taskList replyTable upd conn = flip runRead
     --   | isFromUser upd && fromEnum (fromJust $ getUserId upd) /= selfId ->
     --       lift $ addTask taskQueue $ (`runReaderT` env) _privMsgHandler
 
-    -- | isSyncUpdate upd ->
-    --     _syncHandler
+    --   | isSyncUpdate upd ->
+    --       _syncHandler
 
       | otherwise -> pure ()
   where

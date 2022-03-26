@@ -36,36 +36,36 @@ import           Data.Mirai                     ( mkMessageChainTP )
 
 splitIntoGroups :: Int -> [a] -> [[a]]
 splitIntoGroups _ [] = []
-splitIntoGroups i xs = if length xs > i then (take (i+1) xs) : splitIntoGroups i (drop (i+1) xs) else [xs]
+splitIntoGroups i xs = if length xs > i then take (i+1) xs : splitIntoGroups i (drop (i+1) xs) else [xs]
 
 fetchYandeRe24h_out :: IO [[ChainMessage]]
 fetchYandeRe24h_out = do
   urls <- fetchYandeRe24h
-  pure $ (mkMessageChainTP T.empty . pure) <$> urls
+  pure $ mkMessageChainTP T.empty . pure <$> urls
   -- pure [(mkMessageChainTP T.empty url ) | url <- splitIntoGroups 6 urls]
 
 
 fetchYandeReWeek_out :: IO [[ChainMessage]]
 fetchYandeReWeek_out = do
   urls <- fetchYandeReWeek
-  pure $ (mkMessageChainTP T.empty . pure) <$> urls
+  pure $ mkMessageChainTP T.empty . pure <$> urls
 
 fetchYandeReWeek :: IO [Text]
 fetchYandeReWeek = do
-      resp <- (BL.drop 10000) . (^. Wreq.responseBody) <$> Wreq.get "https://yande.re/post/popular_by_week"
+      resp <- BL.drop 10000 . (^. Wreq.responseBody) <$> Wreq.get "https://yande.re/post/popular_by_week"
       let urlList = take 40 $ searchAllBetweenBL "href=\"https://files.yande.re/" "\"" resp
       pure $ ( "https://files.yande.re/sample/" <> )
            . ( <> ".re.jpg")
-           . ( T.takeWhile (/='.') )
+           . T.takeWhile (/='.')
            . ( T.drop 1 . T.dropWhile (/='/') )
            . toStrict . decodeUtf8 <$> urlList
 
 fetchYandeRe24h :: IO [Text]
 fetchYandeRe24h = do
-      resp <- (BL.drop 10000) . (^. Wreq.responseBody) <$> Wreq.get "https://yande.re/post/popular_recent"
+      resp <- BL.drop 10000 . (^. Wreq.responseBody) <$> Wreq.get "https://yande.re/post/popular_recent"
       let urlList = take 40 $ searchAllBetweenBL "href=\"https://files.yande.re/" "\"" resp
       pure $ ( "https://files.yande.re/sample/" <> )
            . ( <> ".re.jpg")
-           . ( T.takeWhile (/='.') )
+           . T.takeWhile (/='.')
            . ( T.drop 1 . T.dropWhile (/='/') )
            . toStrict . decodeUtf8 <$> urlList

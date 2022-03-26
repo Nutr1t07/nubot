@@ -160,7 +160,7 @@ getAscii2dUrls imgUrl = do
 
 
 getYandexScreenshot :: Text -> IO (Maybe Text)
-getYandexScreenshot url = getScreenshot ((1264, 1551), (0, 98)) (1280, 1700) $ searchUrl
+getYandexScreenshot url = getScreenshot ((1264, 1551), (0, 98)) (1280, 1700) searchUrl
   where searchUrl = "https://yandex.com/images/search?source=collections&rpt=imageview&url=" <> url
 
 getSearchUrls :: Text -> IO (Either Text Text)

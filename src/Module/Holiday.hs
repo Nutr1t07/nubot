@@ -18,7 +18,7 @@ getHolidayText_out = do
   rst <- getHolidayText
   case rst of
     Nothing -> pure []
-    Just x -> pure $ [mkMessageChainT x]
+    Just x -> pure [mkMessageChainT x]
 
 getHolidayText :: IO (Maybe Text)
 getHolidayText = do

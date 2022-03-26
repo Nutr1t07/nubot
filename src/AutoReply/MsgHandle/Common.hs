@@ -157,10 +157,10 @@ getWeatherHdl = do
   case txt of
     Just x -> reply x
     _ -> reply "未来一周无雨。"
-  pic <- lift $ get7DayScreenshot
+  pic <- lift get7DayScreenshot
   case pic of
     Nothing -> do
-      lift $ logWT Error $ "[getWeatherHdl] getting screenshot failed"
+      lift $ logWT Error "[getWeatherHdl] getting screenshot failed"
       replyQ "获取天气图像失败。"
     Just x -> replyPicBase64 "" x
 

@@ -27,7 +27,7 @@ getScreenshot' (width, height) url = do
                   ExitFailure _ -> pure Nothing
 
                   ExitSuccess -> do
-                    picContent <- catch ( encodeBase64 <$> BS.readFile name) (\x ->  ((logWT Error $ "error reading picture base64" <> show (x::SomeException)) >> pure ""))
+                    picContent <- catch ( encodeBase64 <$> BS.readFile name) (\x -> logWT Error ("error reading picture base64" <> show (x::SomeException)) >> pure "")
                     case picContent of
                       "" -> pure Nothing
                       x  -> pure $ Just x
@@ -53,7 +53,7 @@ getScreenshot ((cropWidth, cropHeight), (x, y)) (width, height) url = do
                   ExitFailure _ -> pure Nothing
 
                   ExitSuccess -> do
-                    picContent <- catch ( encodeBase64 <$> BS.readFile name) (\x ->  ((logWT Error $ "error reading picture base64" <> show (x::SomeException)) >> pure ""))
+                    picContent <- catch ( encodeBase64 <$> BS.readFile name) (\x -> logWT Error ("error reading picture base64" <> show (x::SomeException)) >> pure "")
                     case picContent of
                       "" -> pure Nothing
                       x  -> pure $ Just x
@@ -75,8 +75,8 @@ callChromiumScreenshot (width, height) url = do
   case ret of
     ExitFailure _ -> pure Nothing
     ExitSuccess   -> do
-      fileName <- (("cache/" <>) . (<> ".png") . show) <$> getPOSIXSec
-      copyFile "screenshot.png" $ fileName
+      fileName <- ("cache/" <>) . (<> ".png") . show <$> getPOSIXSec
+      copyFile "screenshot.png" fileName
       removeFile "screenshot.png"
       exist <- doesFileExist fileName
       if exist then pure (Just fileName) else pure Nothing

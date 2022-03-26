@@ -6,7 +6,7 @@ import           Codec.Serialise                ( Serialise, deserialiseOrFail, 
 import           GHC.Generics                   ( Generic )
 import           Control.Exception              ( try, SomeException )
 import           Control.Concurrent             ( threadDelay )
-import           Control.Monad                  ( forever, void )
+import           Control.Monad
 import           Data.Either                    ( fromRight )
 import           Data.Text                      ( Text )
 import           Data.Foldable                  ( traverse_ )
@@ -74,7 +74,7 @@ runScheduledTask taskRef conn = forever . void $ ((try $ do
                 if not runFlag
                   then pure []
                   else do rst <- getFunc funcName
-                          sequence $ (sendTarget conn) <$> rst <*> pure target'
+                          sequence $ sendTarget conn <$> rst <*> pure target'
           (TaskList tasks) <- readIORef taskRef
           traverse_ singleRun tasks
           threadDelay oneMin
@@ -84,7 +84,7 @@ runScheduledTask taskRef conn = forever . void $ ((try $ do
     sendTarget conn cm (Group gid) = sendMessage CT.Group  conn (Just . RSendMsg $ defSendMsg { sm_messageChain = cm, sm_group = Just gid })
 
 rmScheduledTask :: String -> Target -> TaskListRef -> IO (Either String ())
-rmScheduledTask funcName t taskListRef = do
+rmScheduledTask funcName t taskListRef =
   case lookup funcName funcMap of
     Nothing -> pure (Left "not found")
     Just x -> do
@@ -95,10 +95,10 @@ rmScheduledTask funcName t taskListRef = do
     removeIt [] = []
     removeIt (x:xs) = if target x == t && procName x == funcName
                          then xs
-                         else x:(removeIt xs)
+                         else x:removeIt xs
 
 addScheduledTask :: TimeInfo -> String -> Target -> TaskListRef -> IO (Either String ())
-addScheduledTask timeInfo funcName t taskListRef = do
+addScheduledTask timeInfo funcName t taskListRef =
   case lookup funcName funcMap of
     Nothing -> pure (Left "not found")
     Just _ -> do
@@ -111,7 +111,7 @@ addScheduledTask timeInfo funcName t taskListRef = do
                           else xss
 
 
-readTaskList :: IO (Maybe (TaskListRef))
+readTaskList :: IO (Maybe TaskListRef)
 readTaskList = do
   raw <- fromRight BS.empty <$> (try (BS.readFile taskListPath) :: IO (Either SomeException BS.ByteString))
   case deserialiseOrFail (BL.fromStrict raw) of
@@ -126,7 +126,7 @@ saveTaskList taskListRef = do
   schTable <- readIORef taskListRef
   BL.writeFile taskListPath $ serialise schTable
 
-taskListPath :: [Char]
+taskListPath :: String
 taskListPath = "taskList.dat"
 
 
@@ -161,12 +161,12 @@ instance Show BaseField where
 checkTimeSatisfied :: TimeInfo -> IO Bool
 checkTimeSatisfied TimeInfo{..} = do
     currTime <- zonedTimeToLocalTime <$> getZonedTime
-    let [cMin, cHour] = [todMin, todHour] <*> (pure $ localTimeOfDay currTime)
+    let [cMin, cHour] = [todMin, todHour] <*> pure (localTimeOfDay currTime)
         (_, cMonth, cDayOfMo) = toGregorian $ localDay currTime
         (_, _, cDayOfWeek) = toWeekDate $ localDay currTime
     currHour <- todHour . localTimeOfDay . zonedTimeToLocalTime <$> getZonedTime
 
-    pure $ all id [ checkTimeField cMin tMin
+    pure $ and [ checkTimeField cMin tMin
          , checkTimeField cHour tHour
          , checkTimeField cDayOfMo tDayOfMo
          , checkTimeField cMonth tMonth
@@ -185,13 +185,14 @@ parseTimeInfo str =
   if length raw /= 5
     then Left "argument length exceeded, expected 5"
     else
-      fmap promote $ sequence =<< fmap (zipWith (\f x -> f x)
-              [guardTF 0 59, guardTF 0 23, guardTF 1 31, guardTF 1 12, guardTF 1 7])
-              (traverse parseSingle raw)
+      fmap promote $ zipWithM (\f x -> f x)
+              [guardTF 0 59, guardTF 0 23, guardTF 1 31, guardTF 1 12, guardTF 1 7] =<<
+              traverse parseSingle raw
 
   where
     split' x = filter (/="") . T.split (==x)
     elem' x xs = T.any (==x) xs
+
 
     promote [a,b,c,d,e] = TimeInfo a b c d e
 
@@ -200,14 +201,14 @@ parseTimeInfo str =
       if xs == "*"
         then Right MatchAll
         else let items = split' ',' xs in
-             fmap MatchSome $ traverse (\x -> if '-' `elem'` x
-                       then (case split' '-' x of
-                              (min : max : _) ->
-                                   let min' = fst <$> T.decimal min
-                                       max' = fst <$> T.decimal max in
-                                   RangeField <$> min' <*> max'
-                              _ -> Left "spliting range field failed")
-                       else SingleField <$> fst <$> T.decimal x) items
+             MatchSome <$> traverse (\x -> if '-' `elem'` x
+                    then (case split' '-' x of
+                           (min : max : _) ->
+                                let min' = fst <$> T.decimal min
+                                    max' = fst <$> T.decimal max in
+                                RangeField <$> min' <*> max'
+                           _ -> Left "spliting range field failed")
+                    else SingleField . fst <$> T.decimal x) items
 
     guardTF min max xss@(MatchSome xs) = MatchSome <$> traverse (guardBF min max) xs
     guardTF _ _ MatchAll = Right MatchAll
