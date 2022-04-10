@@ -88,6 +88,6 @@ callChromiumScreenshot (width, height) url = do
              , "--hide-scrollbars"
              , "--ignore-certificate-errors-spki-list"
              , "--virtual-time-budget=10000"
-             , "--run-all-compositor-stages-before-draw"
+             , "--timeout=15000"
              , "--window-size=" <> showT width <> "," <> showT height
              , url]

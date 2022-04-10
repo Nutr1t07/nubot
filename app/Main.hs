@@ -1,52 +1,49 @@
 module Main where
 
-import Network.Mirai
-import Util.Log
-import Data.Aeson
-import Data.ByteString.Lazy
-import Data.Text
-import Control.Exception
-import Prelude hiding (readFile)
-import Util.Config
+import Control.Exception    ( try, SomeException (SomeException) )
+import Control.Monad        ( Monad((>>=)), when )
+import Data.Aeson           ( eitherDecode )
+import Data.ByteString.Lazy ( readFile, ByteString )
 import Data.Maybe
-import Control.Monad
-import Type.Mirai.Update
-import AutoReply.Handler
-import Data.TaskQueue (emptyTaskQueue)
+import GHC.IO.Encoding      ( utf8, setLocaleEncoding )
+
+import AutoReply.Handler    ( mainHandler )
+import Data.TaskQueue       ( emptyTaskQueue )
+import Data.Either.Combinators
 import Data.User
-import Data.Mirai (initMsgLogDB)
-import GHC.IO.Encoding
-import Data.Schedule
+                            ( UserGroup,
+                              emptyRepliedTable,
+                              emptyUserGroup,
+                              getUserGroupFromLocal,
+                              saveUserGroup )
+import Data.Mirai           ( initMsgLogDB )
+import Data.Schedule        ( TaskListRef, emptyTaskList, getTaskListFromLocal, runScheduledTask )
+import Network.Mirai        ( runConn )
+import Util.Config          ( Config(mirai_qq_id) )
+import Util.Log             ( logErr )
+
+import Prelude hiding (readFile)
 
 main :: IO ()
 main = do
   setLocaleEncoding utf8
   initMsgLogDB
   cfg <- readConfig
-  when (isJust cfg) $ do
-    userGroup <- getUserGroup
-    scheduledTask <- getScheduledTask
-    taskQueue <- emptyTaskQueue (saveUserGroup userGroup)
-    repliedTable <- emptyRepliedTable
-    runConn (fromJust cfg)
-      (mainHandler (mirai_qq_id $ fromJust cfg) taskQueue userGroup scheduledTask repliedTable)
-      (runScheduledTask scheduledTask)
-
-getScheduledTask :: IO TaskListRef
-getScheduledTask = do
-  taskListRef <- readTaskList  -- read from local file
-  maybe emptyTaskList pure taskListRef
-
-getUserGroup :: IO UserGroup
-getUserGroup = do
-  grp <- readUserGroup  -- read from local file
-  maybe emptyUserGroup pure grp
+  case cfg of
+    Nothing -> logErr "reading config" "empty"
+    Just cfg' -> do
+      userGroup     <- maybe emptyUserGroup pure =<< getUserGroupFromLocal
+      scheduledTask <- maybe emptyTaskList pure =<< getTaskListFromLocal
+      taskQueue     <- emptyTaskQueue (saveUserGroup userGroup)
+      repliedTable  <- emptyRepliedTable
+      runConn cfg'
+        (mainHandler (mirai_qq_id cfg') taskQueue userGroup scheduledTask repliedTable)
+        (runScheduledTask scheduledTask)
 
 readConfig :: IO (Maybe Config)
-readConfig = let tag = "parsing config" in do
-  rawCfg <- try $ readFile "config.json" :: IO (Either SomeException ByteString)
-  case rawCfg of
-    Left err -> logErr tag (show err) >>= const (pure Nothing)
-    Right cfgRaw' -> case eitherDecode cfgRaw' of
-      Left err -> logErr tag (show err) >>= const (pure Nothing)
-      Right cfg -> pure (Just cfg)
+readConfig = do
+  rawCfg <- mapLeft show <$>
+              (try (readFile "config.json") :: IO (Either SomeException ByteString))
+  case rawCfg >>= eitherDecode of
+    Left err -> logErr "parsing config" (show err) >> pure Nothing
+    Right cfg -> pure (Just cfg)

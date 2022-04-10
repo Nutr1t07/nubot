@@ -111,8 +111,8 @@ addScheduledTask timeInfo funcName t taskListRef =
                           else xss
 
 
-readTaskList :: IO (Maybe TaskListRef)
-readTaskList = do
+getTaskListFromLocal :: IO (Maybe TaskListRef)
+getTaskListFromLocal = do
   raw <- fromRight BS.empty <$> (try (BS.readFile taskListPath) :: IO (Either SomeException BS.ByteString))
   case deserialiseOrFail (BL.fromStrict raw) of
     Right x  -> Just <$> newIORef x

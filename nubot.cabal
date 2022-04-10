@@ -61,6 +61,7 @@ library
     , base64
     , bytestring
     , directory
+    , either
     , lens
     , mime-mail
     , network-uri
@@ -88,6 +89,7 @@ executable nubot-exe
     , base64
     , bytestring
     , directory
+    , either
     , lens
     , mime-mail
     , network-uri
@@ -117,6 +119,7 @@ test-suite nubot-test
     , base64
     , bytestring
     , directory
+    , either
     , lens
     , mime-mail
     , network-uri

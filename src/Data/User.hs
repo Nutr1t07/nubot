@@ -6,7 +6,6 @@ import Type.Mirai.Update
 import Data.Text
 import Data.IORef (newIORef, IORef, readIORef, modifyIORef, writeIORef)
 import Control.Monad (when, unless)
-import GHC.IORef (readIORef)
 import Data.Maybe (isJust)
 import Util.Log (logErr)
 import Codec.Serialise (serialise, deserialiseOrFail, DeserialiseFailure (DeserialiseFailure))
@@ -28,8 +27,8 @@ saveUserGroup grp = do
   grp' <- readIORef grp
   BL.writeFile savePath $ serialise grp'
 
-readUserGroup :: IO (Maybe UserGroup)
-readUserGroup = do
+getUserGroupFromLocal :: IO (Maybe UserGroup)
+getUserGroupFromLocal = do
   raw <- fromRight BS.empty <$> (try (BS.readFile savePath) :: IO (Either SomeException BS.ByteString))
   case deserialiseOrFail (BL.fromStrict raw) of
     Right x -> Just <$> newIORef x
@@ -106,7 +105,7 @@ emptyRepliedTable :: IO RepliedTable
 emptyRepliedTable = newIORef []
 
 markReplied :: RepliedTable -> Text -> UserID -> IO ()
-markReplied table' txt userId= do
+markReplied table' txt userId = do
   table <- readIORef table'
   writeIORef table' (mod table)
   where mod [] = [(userId, [txt])]
@@ -120,4 +119,3 @@ isReplied table' txt userId = do
   pure $ case lookup userId table of
            Just x -> txt `elem` x
            Nothing -> False
-  

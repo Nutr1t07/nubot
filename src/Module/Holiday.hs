@@ -27,7 +27,7 @@ getHolidayText = do
   let textIt hld = case hld_name hld of
                       "" -> Nothing
                       _  -> do
-                        let number = if hld_now hld /= 0 then "的第" <> digitToCN (hld_now hld) <> "天" else ""
+                        let number = if hld_now hld /= 0 then "(假期)的第" <> digitToCN (1+hld_now hld) <> "天" else ""
                         let name = hld_name hld <> if hld_enname hld /= "" then " (" <> hld_enname hld <> ") " else ""
                         let tip  = if hld_now hld == 0 then hld_tip hld else ""
                         Just $ "明天是" <> name <> number <> "。" <> tip
