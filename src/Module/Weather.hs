@@ -57,7 +57,7 @@ getNextRainyDay = do
     let
         -- it's actually a 15-day forecast. and we only need 7 days.
         weatherTypes = drop 1 $ take 8 $ searchAllBetweenBL' ">" "</span></div><div data-testid=\"P" raw
-        weatherDates = fmap transBL2TS $ drop 1 $ take 8 $ searchAllBetweenBL' ">" "</h2><d" raw
+        weatherDates = fmap transBL2TS $ drop 1 $ take 8 $ searchAllBetweenBL' ">" "</h3><div data-testid=\"d" raw
 
         rainPercents' = take 30 $ searchAllBetweenBL' ">" "</span></div><div c" raw
         rainPercents  = take 14 $ transBL2TS <$> if length rainPercents' == 29
@@ -74,7 +74,7 @@ getNextRainyDay = do
           1 -> "日"
           2 -> "夜"
           3 -> "霈"
-          0 -> "无"
+          0 -> "丨"
           5 -> "今"
           8 -> "〇"
           _ -> "？") xs
@@ -87,7 +87,7 @@ getNextRainyDay = do
         extraInfo = let nextRainCount = length $ takeWhile (== 0) $ drop (today+1) (weekInfo <> weekInfo) in
                (case nextRainCount of
                   0 -> ""
-                  1 -> "后天有雨。"
+                  1 -> "后天有雨。\n"
                   _ -> "下次降水将在" <> showT (nextRainCount+1) <> "天后。\n")
             <> "一周内共有" <> showT rainDays <> "天出现降水。\n"
 
@@ -95,14 +95,6 @@ getNextRainyDay = do
     let tmrwRainyHourText = case hours of
                               [] -> ""
                               xs ->
-                                    -- let aam = filter (<13) xs
-                                        -- ppm = filter (>12) xs
-                                        -- genText t hours = (<> t) <$> (hoursToText hours)
-                                    -- in
-                                    -- ("明日" <>) . (<> "有雨。\n") $
-                                    --   mconcat $ intersperse "," $ catMaybes $ zipWith (\f x -> f x)
-                                    --                 (genText <$> ["am", "pm"])
-                                    --                 [aam, ppm]
                                     maybe "" (("明日" <>) . (<> "时有雨。\n")) (hoursToText hours)
     let isLastRain = case rainPcIndices of
                         [0,1] -> True
