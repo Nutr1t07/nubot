@@ -5,7 +5,7 @@ module Data.Mirai where
 import           Data.Maybe
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.List (intersperse)
+import           Data.List (intersperse, find)
 import           Database.SQLite.Simple
 
 import           Type.Mirai.Update
@@ -166,21 +166,18 @@ getChatType _ = Nothing
 
 -- check from quote
 getImgUrls' :: Update -> IO [Text]
-getImgUrls' (MUpdate MessageUpdate{..}) = do
-  storedMsg <- catMaybes <$> traverse fetchMsg quoteId
-  let urls = foldMap message_image_urls storedMsg
+getImgUrls' upd@(MUpdate MessageUpdate{updm_messageChain = msgChain}) = do
+  storedMsg <- fetchMsg quoteId
+  let realMsg = filter (\x -> group_id x == getGroupId upd || (Just . user_id) x == getUserId upd) storedMsg
+      urls = foldMap message_image_urls storedMsg
   pure $ urls <> directUrls
   where
-    directUrls    = getUrls updm_messageChain
-    getUrls chain = map (fromJust . cm_url) $ filter (\x -> cm_type x == "Image") chain
-    quoteId       = map (fromJust . cm_id) $ filter (\x -> cm_type x == "Quote") updm_messageChain
+    directUrls    = map (fromJust . cm_url) $ filter (\x -> cm_type x == "Image") msgChain
+    quoteId       = (fromJust . cm_id . fromJust) $ find (\x -> cm_type x == "Quote") msgChain
 getImgUrls' _ = pure []
 
 getImgUrls :: Update -> Maybe [Text]
-getImgUrls (MUpdate MessageUpdate{..}) = Just directUrls
-  where
-    directUrls    = getUrls updm_messageChain
-    getUrls chain = map (fromJust . cm_url) $ filter (\x -> cm_type x == "Image") chain
+getImgUrls (MUpdate MessageUpdate{updm_messageChain = msg}) = Just $ map (fromJust . cm_url) $ filter (\x -> cm_type x == "Image") msg
 getImgUrls _ = Nothing
 
 getPlainText :: Update -> Maybe Text
@@ -212,8 +209,7 @@ getText _ = Nothing
 
 
 
-
-
+dbPath :: String
 dbPath = "msgStore.db"
 
 data StoreMsg = StoreMsg {
@@ -274,16 +270,14 @@ createMsgLogDB =
 
 
 -- | Fetch a logged message from local file "wlMsg.log".
-fetchMsg :: Integer -> IO (Maybe StoreMsg)
-fetchMsg msgId = do
-  r <- withConnection
+fetchMsg :: Integer -> IO [StoreMsg]
+fetchMsg msgId = withConnection
     dbPath
     (\conn ->
       queryNamed conn
                  "SELECT * FROM msgs WHERE message_id = :msg_id"
                  [":msg_id" := msgId] :: IO [StoreMsg]
     )
-  if null r then pure Nothing else pure $ Just (head r)
 
 storeMsg :: Update -> IO ()
 storeMsg update = do

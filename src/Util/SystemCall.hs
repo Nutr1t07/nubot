@@ -43,7 +43,7 @@ callMogrifyCrop' name = do
              , T.pack name]
 
 getScreenshot :: ((Int, Int), (Int, Int)) -> (Int, Int) -> Text -> IO (Maybe Text)
-getScreenshot ((cropWidth, cropHeight), (x, y)) (width, height) url = fmap join $ timeout 10000000 $ do
+getScreenshot ((cropWidth, cropHeight), (x, y)) (width, height) url = fmap join $ timeout 30000000 $ do
     logWT'T Info $ "getting screenshot of " <> url
     fileName <- callChromiumScreenshot (width, height) url
     case fileName of
