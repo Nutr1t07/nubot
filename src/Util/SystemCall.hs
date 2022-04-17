@@ -5,6 +5,7 @@ module Util.SystemCall where
 import qualified Turtle
 import           Turtle                             ( ExitCode (ExitFailure, ExitSuccess) )
 import           System.Directory
+import           System.Timeout
 import           Util.Log
 import           Util.Time
 import           Util.Misc
@@ -12,6 +13,7 @@ import qualified Data.ByteString            as BS
 import qualified Data.Text                  as T
 import           Data.ByteString.Base64             ( encodeBase64 )
 import           Control.Exception
+import           Control.Monad
 import           Data.Text                          ( Text )
 
 getScreenshot' :: (Int, Int) -> Text -> IO (Maybe Text)
@@ -41,7 +43,7 @@ callMogrifyCrop' name = do
              , T.pack name]
 
 getScreenshot :: ((Int, Int), (Int, Int)) -> (Int, Int) -> Text -> IO (Maybe Text)
-getScreenshot ((cropWidth, cropHeight), (x, y)) (width, height) url = do
+getScreenshot ((cropWidth, cropHeight), (x, y)) (width, height) url = fmap join $ timeout 10000000 $ do
     logWT'T Info $ "getting screenshot of " <> url
     fileName <- callChromiumScreenshot (width, height) url
     case fileName of

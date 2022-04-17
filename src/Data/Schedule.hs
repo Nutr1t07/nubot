@@ -4,7 +4,7 @@ module Data.Schedule where
 import           Network.Mirai                  ( sendMessage, Connection )
 import           Codec.Serialise                ( Serialise, deserialiseOrFail, serialise )
 import           GHC.Generics                   ( Generic )
-import           Control.Exception              ( try, SomeException )
+import           Control.Exception              ( try, catch, SomeException )
 import           Control.Concurrent             ( threadDelay )
 import           Control.Monad
 import           Data.Either                    ( fromRight )
@@ -68,17 +68,16 @@ data Target = User Integer | Group Integer
 instance Serialise Target
 
 runScheduledTask :: TaskListRef -> Connection -> IO a
-runScheduledTask taskRef conn = forever . void $ ((try $ do
+runScheduledTask taskRef conn = forever . void $ (do
           let singleRun (Task funcName timeInfo target') = do
                 runFlag <- checkTimeSatisfied timeInfo
                 if not runFlag
                   then pure []
-                  else do rst <- getFunc funcName
+                  else do rst <- catch (getFunc funcName) ((\_ -> pure []) :: SomeException -> IO [[ChainMessage]])
                           sequence $ sendTarget conn <$> rst <*> pure target'
           (TaskList tasks) <- readIORef taskRef
           traverse_ singleRun tasks
-          threadDelay oneMin
-       ) :: IO (Either SomeException ()))
+          threadDelay oneMin)
   where
     sendTarget conn cm (User uid)  = sendMessage CT.Friend conn (Just . RSendMsg $ defSendMsg { sm_messageChain = cm, sm_qq = Just uid })
     sendTarget conn cm (Group gid) = sendMessage CT.Group  conn (Just . RSendMsg $ defSendMsg { sm_messageChain = cm, sm_group = Just gid })
