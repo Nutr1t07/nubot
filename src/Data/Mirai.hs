@@ -11,6 +11,7 @@ import           Database.SQLite.Simple
 import           Type.Mirai.Update
 import           Type.Mirai.Common
 import           Type.Mirai.Request
+import Util.Log (logWT, LogTag (Debug))
 
 isFromUser :: Update -> Bool
 isFromUser (MUpdate MessageUpdate{..})
@@ -169,7 +170,7 @@ getImgUrls' :: Update -> IO [Text]
 getImgUrls' upd@(MUpdate MessageUpdate{updm_messageChain = msgChain}) = do
   storedMsg <- fetchMsg quoteId
   let realMsg = filter (\x -> group_id x == getGroupId upd || (Just . user_id) x == getUserId upd) storedMsg
-      urls = foldMap message_image_urls storedMsg
+      urls = foldMap message_image_urls realMsg
   pure $ urls <> directUrls
   where
     directUrls    = map (fromJust . cm_url) $ filter (\x -> cm_type x == "Image") msgChain
